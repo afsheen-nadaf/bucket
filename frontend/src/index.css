@@ -1,0 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=Balsamiq+Sans:wght@400;700&family=Poppins:wght@300;400;500;600;700&family=Sniglet:wght@400;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-cream text-ink font-poppins antialiased;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    /* Set all headings to default to our new Balsamiq Sans font */
+    @apply font-balsamiq font-bold tracking-tight;
+  }
+}
+
+@layer utilities {
+  .animate-dump {
+    /* Uses a custom cubic-bezier for a bouncy, spring-like effect */
+    animation: dump 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    opacity: 0;
+  }
+}
+
+@keyframes dump {
+  0% {
+    transform: translateY(-150px) rotate(-45deg) scale(0.5);
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0) rotate(0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* Smooth fade in for the tagline */
+.animate-fade-in-delayed {
+  animation: fadeIn 1s ease-in forwards;
+  animation-delay: 1.2s;
+  opacity: 0;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
