@@ -24,6 +24,11 @@ const darkenColor = (hex, percent) => {
   );
 };
 
+/**
+ * Folder — natively 200×160px.
+ * Papers carry content passed via `items`. Max 3 items.
+ * At this size, content inside papers is legible without any scaling tricks.
+ */
 const Folder = ({
   color = "#5227FF",
   size = 1,
@@ -33,7 +38,6 @@ const Folder = ({
   onToggle,
 }) => {
   const maxItems = 3;
-  // Only use real items — no placeholder padding
   const papers = items.slice(0, maxItems);
 
   const [open, setOpen] = useState(isOpen || false);
@@ -44,28 +48,30 @@ const Folder = ({
   useEffect(() => {
     if (isOpen !== undefined && isOpen !== open) {
       setOpen(isOpen);
-      if (!isOpen) {
+      if (!isOpen)
         setPaperOffsets(
           Array.from({ length: maxItems }, () => ({ x: 0, y: 0 })),
         );
-      }
     }
   }, [isOpen, open]);
 
-  const folderBackColor = darkenColor(color, 0.08);
-  const paper1 = darkenColor("#ffffff", 0.1);
-  const paper2 = darkenColor("#ffffff", 0.05);
-  const paper3 = "#ffffff";
+  // Changed to match the exact color instead of darkening, preventing the "transparent" illusion
+  const folderBackColor = color;
+  const paperColors = [
+    darkenColor("#ffffff", 0.08),
+    darkenColor("#ffffff", 0.04),
+    "#ffffff",
+  ];
 
-  const handleClick = () => {
+  const handleClick = (e) => {
+    if (e) e.stopPropagation();
     const newState = !open;
     if (isOpen === undefined) {
       setOpen(newState);
-      if (!newState) {
+      if (!newState)
         setPaperOffsets(
           Array.from({ length: maxItems }, () => ({ x: 0, y: 0 })),
         );
-      }
     }
     if (onToggle) onToggle(newState);
   };
@@ -73,128 +79,168 @@ const Folder = ({
   const handlePaperMouseMove = (e, index) => {
     if (!open) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    const offsetX = (e.clientX - centerX) * 0.15;
-    const offsetY = (e.clientY - centerY) * 0.15;
+    const offsetX = (e.clientX - (rect.left + rect.width / 2)) * 0.12;
+    const offsetY = (e.clientY - (rect.top + rect.height / 2)) * 0.12;
     setPaperOffsets((prev) => {
-      const newOffsets = [...prev];
-      newOffsets[index] = { x: offsetX, y: offsetY };
-      return newOffsets;
+      const next = [...prev];
+      next[index] = { x: offsetX, y: offsetY };
+      return next;
     });
   };
 
-  const handlePaperMouseLeave = (e, index) => {
+  const handlePaperMouseLeave = (_, index) => {
+    if (!open) return;
     setPaperOffsets((prev) => {
-      const newOffsets = [...prev];
-      newOffsets[index] = { x: 0, y: 0 };
-      return newOffsets;
+      const next = [...prev];
+      next[index] = { x: 0, y: 0 };
+      return next;
     });
   };
 
-  const folderStyle = {
-    "--folder-color": color,
-    "--folder-back-color": folderBackColor,
-    "--paper-1": paper1,
-    "--paper-2": paper2,
-    "--paper-3": paper3,
-  };
+  // Fan positions when open — papers spread above the folder at native size
+  const openTransforms = [
+    "translate(-115%, -58%) rotate(-16deg)",
+    "translate(-50%,  -80%) rotate(3deg)",
+    "translate(  15%, -56%) rotate(17deg)",
+  ];
 
-  const scaleStyle = {
-    transform: `scale(${size})`,
-    transformOrigin: "center bottom",
-  };
-
-  // Tweaked transforms to account for the smaller paper sizes
-  const getOpenTransform = (index) => {
-    if (index === 0) return "translate(-110%, -65%) rotate(-15deg)";
-    if (index === 1) return "translate(10%, -65%) rotate(15deg)";
-    if (index === 2) return "translate(-50%, -95%) rotate(5deg)";
-    return "";
-  };
+  const W = 200;
+  const H = 160;
 
   return (
-    <div style={scaleStyle} className={className}>
+    <div
+      style={{
+        transform: `scale(${size})`,
+        transformOrigin: "center bottom",
+        overflow: "visible",
+        display: "inline-block",
+      }}
+      className={className}
+    >
       <div
-        className={`group relative transition-all duration-200 ease-in cursor-pointer ${
+        className={`group relative cursor-pointer transition-all duration-300 ease-out ${
           !open ? "hover:-translate-y-2" : ""
         }`}
         style={{
-          ...folderStyle,
-          transform: open ? "translateY(-8px)" : undefined,
+          width: W,
+          height: H,
+          overflow: "visible",
+          transform: open ? "translateY(-12px)" : undefined,
         }}
         onClick={handleClick}
       >
+        {/* Back body */}
         <div
-          className="relative w-[100px] h-[80px] rounded-tl-0 rounded-tr-[10px] rounded-br-[10px] rounded-bl-[10px]"
-          style={{ backgroundColor: folderBackColor }}
+          className="absolute bottom-0 left-0 right-0"
+          style={{
+            height: H,
+            backgroundColor: folderBackColor,
+            borderRadius: "0 16px 16px 16px",
+            overflow: "visible",
+          }}
         >
+          {/* Tab */}
           <span
-            className="absolute z-0 bottom-[98%] left-0 w-[30px] h-[10px] rounded-tl-[5px] rounded-tr-[5px] rounded-bl-0 rounded-br-0"
-            style={{ backgroundColor: folderBackColor }}
-          ></span>
-
-          {/* Folder flaps — step back when open so papers are clickable */}
-          <div
-            className={`absolute w-full h-full origin-bottom transition-all duration-300 ease-in-out ${
-              !open
-                ? "z-30 group-hover:[transform:skew(15deg)_scaleY(0.6)]"
-                : "z-20"
-            }`}
+            className="absolute"
             style={{
-              backgroundColor: color,
-              borderRadius: "5px 10px 10px 10px",
-              ...(open && { transform: "skew(15deg) scaleY(0.6)" }),
+              bottom: "100%",
+              left: 0,
+              width: 60,
+              height: 18,
+              backgroundColor: folderBackColor,
+              borderRadius: "8px 8px 0 0",
             }}
-          ></div>
-          <div
-            className={`absolute w-full h-full origin-bottom transition-all duration-300 ease-in-out ${
-              !open
-                ? "z-30 group-hover:[transform:skew(-15deg)_scaleY(0.6)]"
-                : "z-20"
-            }`}
-            style={{
-              backgroundColor: color,
-              borderRadius: "5px 10px 10px 10px",
-              ...(open && { transform: "skew(-15deg) scaleY(0.6)" }),
-            }}
-          ></div>
+          />
 
-          {/* Papers — sizes reduced (from 70-90% to 60-80%) to fit nicely inside the folder */}
+          {/* Papers */}
           {papers.map((item, i) => {
-            let sizeClasses = "";
-            if (i === 0)
-              sizeClasses = open ? "w-[60%] h-[70%]" : "w-[60%] h-[70%]";
-            if (i === 1)
-              sizeClasses = open ? "w-[70%] h-[70%]" : "w-[70%] h-[60%]";
-            if (i === 2)
-              sizeClasses = open ? "w-[80%] h-[70%]" : "w-[80%] h-[50%]";
+            const pw = [0.62, 0.72, 0.82][i] * W;
+            const ph = [0.64, 0.6, 0.56][i] * H;
 
-            const transformStyle = open
-              ? `${getOpenTransform(i)} translate(${paperOffsets[i].x}px, ${paperOffsets[i].y}px)`
-              : undefined;
+            const baseStyle = {
+              position: "absolute",
+              bottom: "8%",
+              left: "50%",
+              width: pw,
+              height: ph,
+              backgroundColor: paperColors[i],
+              borderRadius: 12,
+              transition: "all 0.38s cubic-bezier(0.34,1.3,0.64,1)",
+              overflow: "visible",
+              zIndex: open ? 40 : 20,
+            };
+
+            const openOffset = `translate(${paperOffsets[i].x}px, ${paperOffsets[i].y}px)`;
+
+            const inlineTransform = open
+              ? {
+                  transform: `${openTransforms[i]} ${openOffset}`,
+                  boxShadow: "0 10px 32px rgba(0,0,0,0.14)",
+                  cursor: item ? "pointer" : "default",
+                }
+              : {};
+
+            let hoverClasses = "";
+            if (!open) {
+              // Stacking papers vertically on hover to make them easily countable
+              if (i === 0)
+                hoverClasses =
+                  "transform -translate-x-1/2 translate-y-[10%] group-hover:-translate-x-1/2 group-hover:-translate-y-[25%] group-hover:rotate-0";
+              if (i === 1)
+                hoverClasses =
+                  "transform -translate-x-1/2 translate-y-[5%] group-hover:-translate-x-1/2 group-hover:-translate-y-[50%] group-hover:rotate-0";
+              if (i === 2)
+                hoverClasses =
+                  "transform -translate-x-1/2 translate-y-[0%] group-hover:-translate-x-1/2 group-hover:-translate-y-[75%] group-hover:rotate-0";
+            }
 
             return (
               <div
                 key={i}
+                className={hoverClasses}
+                style={{ ...baseStyle, ...inlineTransform }}
                 onMouseMove={(e) => handlePaperMouseMove(e, i)}
                 onMouseLeave={(e) => handlePaperMouseLeave(e, i)}
-                className={`absolute bottom-[10%] left-1/2 transition-all duration-300 ease-in-out overflow-hidden ${
-                  open
-                    ? "z-40 hover:scale-110"
-                    : "z-20 transform -translate-x-1/2 translate-y-[10%] group-hover:translate-y-0"
-                } ${sizeClasses}`}
-                style={{
-                  ...(!open ? {} : { transform: transformStyle }),
-                  backgroundColor: i === 0 ? paper1 : i === 1 ? paper2 : paper3,
-                  borderRadius: "10px",
-                  cursor: item ? "pointer" : "default",
-                }}
               >
-                {item}
+                {/* Inner clip so content stays within paper shape */}
+                <div
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    overflow: "hidden",
+                    borderRadius: 12,
+                  }}
+                >
+                  {item}
+                </div>
               </div>
             );
           })}
+
+          {/* Front flap (opens a bit more on hover now) */}
+          <div
+            className={`absolute inset-0 origin-bottom transition-all duration-300 ease-in-out ${
+              !open
+                ? "z-30 group-hover:[transform:skew(-10deg)_scaleY(0.82)]"
+                : "z-[25]"
+            }`}
+            style={{
+              backgroundColor: color,
+              borderRadius: "0 16px 16px 16px",
+              ...(open && { transform: "skew(-15deg) scaleY(0.55)" }),
+            }}
+          />
+
+          {/* Gloss */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              borderRadius: "0 16px 16px 16px",
+              background:
+                "linear-gradient(155deg, rgba(255,255,255,0.2) 0%, transparent 50%)",
+              zIndex: 31,
+            }}
+          />
         </div>
       </div>
     </div>

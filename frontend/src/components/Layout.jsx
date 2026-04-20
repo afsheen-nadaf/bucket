@@ -10,8 +10,7 @@ export default function Layout() {
 
   const navItems = [
     { path: "/", label: "Home" },
-    { path: "/lists", label: "My Lists" },
-    { path: "/friends", label: "Friends" },
+    { path: "/lists", label: "collections" },
     { path: "/profile", label: "Profile" },
   ];
 
