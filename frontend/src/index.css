@@ -1,16 +1,28 @@
-@import url('https://fonts.googleapis.com/css2?family=Balsamiq+Sans:wght@400;700&family=Poppins:wght@300;400;500;600;700&family=Sniglet:wght@400;800&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&family=Sniglet:wght@400;800&display=block");
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+html,
+body,
+#root {
+  background-color: #d4dcf7;
+  min-height: 100vh;
+}
+
 @layer base {
   body {
     @apply bg-cream text-ink font-poppins antialiased;
   }
-  h1, h2, h3, h4, h5, h6 {
-    /* Set all headings to default to our new Balsamiq Sans font */
-    @apply font-balsamiq font-bold tracking-tight;
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    /* All headings use Poppins font */
+    @apply font-poppins font-bold tracking-tight;
   }
 }
 
@@ -44,6 +56,10 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }

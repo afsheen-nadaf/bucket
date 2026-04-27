@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { User, Star, Lock, List, PlusCircle, Sparkles } from "lucide-react";
-import Iridescence from "../components/Iridescence"; // adjust path as needed
 
 export default function PublicProfile() {
   const { username } = useParams();
@@ -128,11 +127,6 @@ export default function PublicProfile() {
 
   return (
     <div className="max-w-3xl mx-auto lowercase relative z-10">
-      {/* Iridescent background */}
-      <div className="fixed inset-0 pointer-events-none z-0 opacity-40">
-        <Iridescence color={[0.4, 0.6, 1.0]} speed={0.6} amplitude={0.06} />
-      </div>
-
       {/* Header */}
       <div
         className="p-8 rounded-[2rem] text-ink flex items-center gap-6 mb-8 transition-transform hover:-translate-y-0.5"
@@ -231,7 +225,7 @@ export default function PublicProfile() {
                     <h3
                       className="text-lg text-ink"
                       style={{
-                        fontFamily: "'Balsamiq Sans', cursive",
+                        fontFamily: "'Poppins', sans-serif",
                         fontWeight: 700,
                       }}
                     >
@@ -293,7 +287,7 @@ export default function PublicProfile() {
                   <h3
                     className="text-xl mb-2 text-ink"
                     style={{
-                      fontFamily: "'Balsamiq Sans', cursive",
+                      fontFamily: "'Poppins', sans-serif",
                       fontWeight: 700,
                     }}
                   >
@@ -338,7 +332,7 @@ function ActivityCard({ event, timeAgo, glassCard }) {
             <h3
               className="text-base text-ink hover:text-cornflower transition-colors truncate"
               style={{
-                fontFamily: "'Balsamiq Sans', cursive",
+                fontFamily: "'Poppins', sans-serif",
                 fontWeight: 700,
               }}
             >
@@ -383,7 +377,7 @@ function ActivityCard({ event, timeAgo, glassCard }) {
           </p>
           <h3
             className="text-base text-ink truncate"
-            style={{ fontFamily: "'Balsamiq Sans', cursive", fontWeight: 700 }}
+            style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 700 }}
           >
             {data.title || data.name || "untitled item"}
           </h3>
@@ -413,7 +407,7 @@ function ActivityCard({ event, timeAgo, glassCard }) {
           <p className="font-poppins text-sm text-ink/60 mb-0.5">rated</p>
           <h3
             className="text-base text-ink truncate"
-            style={{ fontFamily: "'Balsamiq Sans', cursive", fontWeight: 700 }}
+            style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 700 }}
           >
             {data.title}
           </h3>

@@ -73,7 +73,7 @@ app.get("/api/recommendations", async (req, res) => {
     // FIX: Added 'review' to the select statement to fetch the user's note!
     const { data: ratings, error: ratingsErr } = await supabase
       .from("ratings")
-      .select("user_id, api_id, title, category, cover_url, creator, review")
+      .select("user_id, api_id, title, category, cover_url, user_id, review")
       .in("user_id", friendIds)
       .gte("rating", 4);
 
@@ -95,7 +95,7 @@ app.get("/api/recommendations", async (req, res) => {
     if (listIds.length > 0) {
       const { data: items, error: itemsErr } = await supabase
         .from("list_items")
-        .select("list_id, api_id, title, cover_url, creator")
+        .select("list_id, api_id, title, cover_url, user_id")
         .in("list_id", listIds);
 
       if (itemsErr) console.error("List items fetch error:", itemsErr);
@@ -256,7 +256,7 @@ app.post("/api/dismissed-recs", async (req, res) => {
 
 // --- ENDPOINT: EXTERNAL SEARCH ---
 app.get("/api/search", async (req, res) => {
-  const { category, q } = req.query;
+  const { category, q, lat, lng } = req.query;
   if (!q || !category)
     return res.status(400).json({ error: "Missing query or category" });
 
@@ -306,22 +306,66 @@ app.get("/api/search", async (req, res) => {
         ),
       );
     } else if (category === "Places") {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5`,
-        {
-          headers: { "User-Agent": "BucketApp/1.0" },
-        },
+  let url = lat && lng
+    ? `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(q)}&limit=10&filter=circle:${lng},${lat},50000&bias=proximity:${lng},${lat}&apiKey=${process.env.GEOAPIFY_API_KEY}`
+    : `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(q)}&limit=10&apiKey=${process.env.GEOAPIFY_API_KEY}`;
+
+  const response = await fetch(url);
+  const data = await response.json();
+  let features = data.features || [];
+
+  // If circle filter returned nothing, retry with just bias
+  if (features.length === 0 && lat && lng) {
+    const fallbackUrl = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(q)}&limit=10&bias=proximity:${lng},${lat}&apiKey=${process.env.GEOAPIFY_API_KEY}`;
+    const fallbackRes = await fetch(fallbackUrl);
+    const fallbackData = await fallbackRes.json();
+    features = fallbackData.features || [];
+  }
+
+  // Sort by confidence + popularity
+  features.sort((a, b) => {
+    const aScore = (a.properties.rank?.confidence || 0) + (a.properties.rank?.popularity || 0);
+    const bScore = (b.properties.rank?.confidence || 0) + (b.properties.rank?.popularity || 0);
+    return bScore - aScore;
+  });
+
+  // Deduplicate by name+city
+  const seen = new Set();
+  results = features
+    .filter((f) => {
+      const props = f.properties;
+      const key = `${(props.name || props.suburb || props.address_line1)?.toLowerCase()}-${props.city?.toLowerCase()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 5)
+    .map((f) => {
+      const props = f.properties;
+      const title = props.name || props.suburb || props.address_line1;
+
+      // Build a meaningful subtitle with street/neighbourhood context
+      const subtitleParts = [
+        props.street || props.neighbourhood || props.suburb, // closest context
+        props.city || props.county,
+        props.state,
+        props.country,
+      ].filter(Boolean);
+
+      // Remove duplicates (suburb sometimes equals title)
+      const subtitle = subtitleParts
+        .filter((part) => part?.toLowerCase() !== title?.toLowerCase())
+        .slice(0, 3) // max 3 parts to keep it readable
+        .join(", ");
+
+      return formatResult(
+        props.place_id?.toString() || f.id,
+        title,
+        null,
+        subtitle,
       );
-      const data = await response.json();
-      results = data.map((p) =>
-        formatResult(
-          p.place_id.toString(),
-          p.display_name.split(",")[0],
-          null,
-          p.display_name.split(",").slice(1, 3).join(",").trim(),
-        ),
-      );
-    }
+    });
+}
     res.json({ results });
   } catch (error) {
     console.error("Search error:", error);

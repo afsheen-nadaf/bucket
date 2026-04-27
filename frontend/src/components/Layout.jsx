@@ -1,21 +1,27 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { LogOut, Menu, X } from "lucide-react";
+import { Home, List, User } from "lucide-react";
+import Iridescence from "./Iridescence";
 
 export default function Layout() {
-  const { signOut } = useAuth();
+  const { user } = useAuth();
   const location = useLocation();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const navItems = [
-    { path: "/", label: "Home" },
-    { path: "/lists", label: "collections" },
-    { path: "/profile", label: "Profile" },
+    { path: "/", label: "home", icon: Home },
+    { path: "/lists", label: "collections", icon: List },
+    { path: "/profile", label: "profile", icon: User },
   ];
 
   // --- REUSABLE GLASS STYLE ---
-  // Lowered opacity to 0.75 to let the frosted glass blur shine through!
   const navGlassStyle = {
     background: "rgba(100, 149, 237, 0.75)",
     backdropFilter: "blur(24px) saturate(180%)",
@@ -27,113 +33,101 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen flex flex-col bg-cream relative overflow-x-hidden">
-      {/* --- FLOATING NAVBAR --- */}
-      <header className="fixed top-4 inset-x-4 md:inset-x-auto md:left-1/2 md:-translate-x-1/2 z-50 md:w-fit group">
-        {/* UPDATED EXPANSION: 
-          Locked the padding (md:px-10) so the distance to the edge never changes.
-          Added group-hover:md:gap-24 to push the items apart from the center!
-        */}
-        <div
-          className="rounded-full px-4 py-2 md:px-10 flex items-center gap-2 md:gap-4 group-hover:md:gap-24 transition-all duration-500 ease-out"
-          style={navGlassStyle}
-        >
-          <div className="w-24 md:w-36 shrink-0 flex justify-start">
+      {/* Persistent background */}
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 0,
+          pointerEvents: "none",
+        }}
+      >
+        <Iridescence color={[0.4, 0.6, 1.0]} speed={0.5} amplitude={0.06} />
+      </div>
+      {/* Cornflower blue filter overlay */}
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 1,
+          pointerEvents: "none",
+          background: "rgba(100, 149, 237, 0.35)",
+        }}
+      />
+
+      {/* Desktop navbar */}
+      {!isMobile && (
+        <header className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-fit group">
+          <div
+            className="rounded-full px-10 py-2 flex items-center gap-4 group-hover:gap-24 transition-all duration-500 ease-out"
+            style={navGlassStyle}
+          >
             <Link
               to="/"
-              onClick={() => setIsMobileMenuOpen(false)}
               className="flex items-center text-white hover:scale-105 transition-transform"
             >
-              <span className="font-sniglet text-2xl font-extrabold tracking-wide mt-1 drop-shadow-sm">
+              <span
+                style={{ fontFamily: "'Sniglet', cursive", fontWeight: 800 }}
+                className="text-2xl tracking-wide drop-shadow-sm text-white"
+              >
                 bucket
               </span>
             </Link>
-          </div>
 
-          {/* UPDATED GAP: Center links also push apart slightly on hover */}
-          <nav className="hidden md:flex items-center justify-center gap-1 md:gap-5 group-hover:md:gap-10 transition-all duration-500 ease-out shrink-0">
-            {navItems.map((item) => {
-              const isActive = location.pathname === item.path;
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`lowercase font-bold px-4 py-2 rounded-full transition-all duration-300 flex items-center text-sm whitespace-nowrap ${
-                    isActive
-                      ? "bg-white text-cornflower shadow-md scale-105"
-                      : "text-white/80 hover:text-white hover:bg-white/20 hover:scale-105"
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-
-          <div className="hidden md:flex w-24 md:w-36 shrink-0 justify-end">
-            <button
-              onClick={signOut}
-              className="flex items-center gap-2 text-white/90 hover:text-white hover:bg-white/20 transition-colors text-sm font-normal lowercase px-4 py-2 rounded-full"
-            >
-              <span>log out</span>
-              <LogOut size={16} />
-            </button>
+            <nav className="flex items-center justify-center gap-5 group-hover:gap-10 transition-all duration-500 ease-out">
+              {navItems.map((item) => {
+                const isActive = location.pathname === item.path;
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`lowercase font-bold px-4 py-2 rounded-full transition-all duration-300 flex items-center text-sm whitespace-nowrap ${
+                      isActive
+                        ? "bg-white text-cornflower shadow-md scale-105"
+                        : "text-white/80 hover:text-white hover:bg-white/20 hover:scale-105"
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
           </div>
+        </header>
+      )}
 
-          <div className="md:hidden flex w-24 shrink-0 justify-end">
-            <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="text-white p-2 rounded-full hover:bg-white/20 transition-colors"
-            >
-              {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
-          </div>
+      {/* Mobile bottom tab bar */}
+      <nav
+        className="md:hidden fixed bottom-0 left-0 right-0 z-50"
+        style={navGlassStyle}
+      >
+        <div className="flex justify-around items-center h-20 px-4">
+          {navItems.map((item) => {
+            const IconComponent = item.icon;
+            const isActive = location.pathname === item.path;
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all ${
+                  isActive ? "bg-white/30" : "hover:bg-white/10"
+                }`}
+              >
+                <IconComponent
+                  size={24}
+                  className={isActive ? "text-white" : "text-white/70"}
+                />
+              </Link>
+            );
+          })}
         </div>
+      </nav>
 
-        {/* --- MOBILE DROPDOWN MENU --- */}
-        <div
-          className={`absolute top-full left-0 right-0 mt-2 mx-2 rounded-3xl overflow-hidden transition-all duration-300 md:hidden ${
-            isMobileMenuOpen
-              ? "max-h-96 opacity-100"
-              : "max-h-0 opacity-0 pointer-events-none"
-          }`}
-          style={navGlassStyle}
-        >
-          <nav className="flex flex-col p-4 gap-2">
-            {navItems.map((item) => {
-              const isActive = location.pathname === item.path;
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={`lowercase font-bold px-4 py-3 rounded-2xl transition-all duration-200 text-center ${
-                    isActive
-                      ? "bg-white text-cornflower shadow-sm"
-                      : "text-white/90 hover:bg-white/10"
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-            <hr className="border-white/20 my-2" />
-            <button
-              onClick={() => {
-                setIsMobileMenuOpen(false);
-                signOut();
-              }}
-              className="flex items-center justify-center gap-2 text-white bg-white/10 hover:bg-white/20 px-4 py-3 rounded-2xl transition-colors font-normal lowercase w-full"
-            >
-              <LogOut size={18} />
-              <span>log out</span>
-            </button>
-          </nav>
+      {/* Main Page Content */}
+      <main className="flex-1 w-full relative z-10 px-4 sm:px-6 md:px-8 pt-8 md:pt-28 pb-24 md:pb-12 overflow-x-hidden">
+        <div className="relative z-10">
+          <Outlet />
         </div>
-      </header>
-
-      {/* Main Page Content - Push down content so it doesn't hide behind the floating nav */}
-      <main className="flex-1 w-full max-w-5xl mx-auto px-4 pt-28 pb-12 relative z-10">
-        <Outlet />
       </main>
     </div>
   );

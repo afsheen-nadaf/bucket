@@ -2,6 +2,11 @@ import { useEffect, useState } from "react";
 
 export default function SplashScreen({ onComplete }) {
   const [isSwiping, setIsSwiping] = useState(false);
+  const [fontReady, setFontReady] = useState(false);
+
+  useEffect(() => {
+    document.fonts.ready.then(() => setFontReady(true));
+  }, []);
 
   useEffect(() => {
     // Start swipe up after 2.5 seconds
@@ -20,10 +25,7 @@ export default function SplashScreen({ onComplete }) {
     };
   }, [onComplete]);
 
-  // Lowercase as requested
   const letters = ["B", "U", "C", "K", "E", "T"];
-
-  // Chaotic, staggered delays to make it look "dumped" rather than perfectly typed
   const delays = ["0ms", "150ms", "50ms", "250ms", "100ms", "200ms"];
 
   return (
@@ -32,20 +34,27 @@ export default function SplashScreen({ onComplete }) {
         isSwiping ? "-translate-y-full" : "translate-y-0"
       }`}
     >
-      {/* The Logo Letters */}
       <div className="flex overflow-visible">
         {letters.map((letter, i) => (
           <span
             key={i}
-            className="text-white font-sniglet font-extrabold text-7xl md:text-9xl animate-dump inline-block"
-            style={{ animationDelay: delays[i] }}
+            className="text-white font-sniglet font-extrabold text-7xl md:text-9xl inline-block"
+            // FIX: explicitly break down the shorthand to prevent the React warning
+            style={{
+              animationName: fontReady ? "dump" : "none",
+              animationDuration: "0.8s",
+              animationTimingFunction: "cubic-bezier(0.2, 0.8, 0.2, 1)",
+              animationFillMode: "both",
+              animationDelay: delays[i],
+              opacity: fontReady ? 1 : 0,
+              transition: "opacity 0.2s",
+            }}
           >
             {letter}
           </span>
         ))}
       </div>
 
-      {/* The Tagline */}
       <div className="absolute bottom-12 animate-fade-in-delayed">
         <p className="text-white/90 font-dmsans tracking-[0.2em] text-sm md:text-base uppercase font-semibold">
           Keep track of what you love

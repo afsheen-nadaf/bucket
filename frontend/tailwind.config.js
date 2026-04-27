@@ -12,7 +12,7 @@ export default {
       },
       fontFamily: {
         poppins: ["Poppins", "sans-serif"],
-        balsamiq: ['"Balsamiq Sans"', "cursive"],
+
         sniglet: ["Sniglet", "cursive"],
       },
     },

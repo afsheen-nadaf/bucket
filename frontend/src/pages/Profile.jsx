@@ -8,24 +8,20 @@ import {
 } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
-import { Link } from "react-router-dom";
-import { motion } from "motion/react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { motion } from "framer-motion";
 import {
   User,
   Star,
   UserPlus,
   UserCheck,
-  X,
   List,
   PlusCircle,
   Sparkles,
   Lock,
+  X,
 } from "lucide-react";
-import Iridescence from "../components/Iridescence";
 
-/* ─────────────────────────────────────────
-   GOOEY SEARCH
-───────────────────────────────────────── */
 function GooeyFilter({ filterId, blur }) {
   return (
     <svg className="pointer-events-none absolute h-0 w-0" aria-hidden="true">
@@ -75,7 +71,6 @@ function GooeySearch({ value, onValueChange, onSearch }) {
   const safeId = reactId.replace(/:/g, "");
   const filterId = `gooey-${safeId}`;
   const iconId = `gooey-icon-${safeId}`;
-
   const inputRef = useRef(null);
   const prevExpanded = useRef(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -130,7 +125,6 @@ function GooeySearch({ value, onValueChange, onSearch }) {
           animate={isExpanded ? "expanded" : "collapsed"}
           transition={gooeySpring}
         >
-          {/* Replaced <button> with <div> to prevent browser default button padding from breaking vertical alignment */}
           <div
             onClick={() => setIsExpanded(true)}
             className="flex h-10 w-full cursor-text items-center gap-2 rounded-full px-4 text-sm outline-none"
@@ -174,23 +168,41 @@ function GooeySearch({ value, onValueChange, onSearch }) {
   );
 }
 
-/* ─────────────────────────────────────────
-   PROFILE PAGE
-───────────────────────────────────────── */
 export default function Profile() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-  const [activeTab, setActiveTab] = useState("activity");
+  const [activeTab, setActiveTab] = useState(() => {
+    const tabFromParams = searchParams.get("tab");
+    return tabFromParams === "friends" ? "friends" : "activity";
+  });
+
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [profile, setProfile] = useState(null);
   const [ratings, setRatings] = useState([]);
   const [lists, setLists] = useState([]);
   const [activity, setActivity] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const [editFirstName, setEditFirstName] = useState("");
+  const [editLastName, setEditLastName] = useState("");
+  const [editUsername, setEditUsername] = useState("");
+  const [usernameError, setUsernameError] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editBio, setEditBio] = useState("");
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
   const [friendList, setFriendList] = useState([]);
+
+  const deleteConfirmRef = useRef(null);
+  const avatarInputRef = useRef(null);
+  const searchTimeoutRef = useRef(null);
 
   useEffect(() => {
     if (user) fetchAll();
@@ -207,6 +219,11 @@ export default function Profile() {
       .eq("id", user.id)
       .single();
     setProfile(profileData);
+    setEditFirstName(profileData?.first_name || "");
+    setEditLastName(profileData?.last_name || "");
+    setEditUsername(profileData?.username || "");
+    setEditEmail(user?.email || "");
+    setEditBio(profileData?.bio || "");
 
     const { data: ratingsData } = await supabase
       .from("ratings")
@@ -263,6 +280,7 @@ export default function Profile() {
       .select("id, requester_id")
       .eq("receiver_id", user.id)
       .eq("status", "pending");
+
     if (requests?.length > 0) {
       const { data: profiles } = await supabase
         .from("profiles")
@@ -286,6 +304,7 @@ export default function Profile() {
       .select("*")
       .or(`requester_id.eq.${user.id},receiver_id.eq.${user.id}`)
       .eq("status", "accepted");
+
     if (accepted?.length > 0) {
       const friendIds = accepted.map((f) =>
         f.requester_id === user.id ? f.receiver_id : f.requester_id,
@@ -300,6 +319,70 @@ export default function Profile() {
     }
   };
 
+  const updateProfile = async () => {
+    if (editUsername.length < 3 || editUsername.includes(" ")) {
+      setUsernameError("min 3 characters, no spaces");
+      return;
+    }
+
+    const { data: existing } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("username", editUsername)
+      .neq("id", user.id)
+      .maybeSingle();
+
+    if (existing) {
+      setUsernameError("this username is already taken");
+      return;
+    }
+
+    setUsernameError("");
+
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .update({
+        first_name: editFirstName,
+        last_name: editLastName,
+        username: editUsername,
+        bio: editBio,
+      })
+      .eq("id", user.id);
+
+    if (editEmail !== user?.email) {
+      await supabase.auth.updateUser({ email: editEmail });
+    }
+
+    if (!profileError) {
+      setProfile({
+        ...profile,
+        first_name: editFirstName,
+        last_name: editLastName,
+        username: editUsername,
+        bio: editBio,
+      });
+      setIsEditingProfile(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText.toLowerCase() !== profile?.username?.toLowerCase()) {
+      return;
+    }
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      await supabase.functions.invoke("delete-account", {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+    } catch (e) {
+      // continue even if edge function fails
+    }
+    await signOut();
+    navigate("/login");
+  };
+
   const handleSearch = useCallback(async () => {
     if (!searchQuery.trim()) return;
     const { data } = await supabase
@@ -310,6 +393,20 @@ export default function Profile() {
       .limit(10);
     setSearchResults(data || []);
   }, [searchQuery, user?.id]);
+
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    searchTimeoutRef.current = setTimeout(() => {
+      handleSearch();
+    }, 300);
+    return () => {
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    };
+  }, [searchQuery, handleSearch]);
 
   const sendFriendRequest = async (receiverId) => {
     const { error } = await supabase
@@ -327,9 +424,31 @@ export default function Profile() {
     await supabase.from("friends").update({ status: "accepted" }).eq("id", id);
     fetchFriendsData();
   };
+
   const declineRequest = async (id) => {
     await supabase.from("friends").delete().eq("id", id);
     fetchFriendsData();
+  };
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAvatarUploading(true);
+    const ext = file.name.split(".").pop();
+    const path = `${user.id}/avatar.${ext}`;
+    const { error } = await supabase.storage
+      .from("avatars")
+      .upload(path, file, { upsert: true });
+    if (!error) {
+      const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+      const url = data.publicUrl + "?t=" + Date.now();
+      await supabase
+        .from("profiles")
+        .update({ avatar_url: url })
+        .eq("id", user.id);
+      setProfile((prev) => ({ ...prev, avatar_url: url }));
+    }
+    setAvatarUploading(false);
   };
 
   const glass = {
@@ -356,6 +475,11 @@ export default function Profile() {
     });
   };
 
+  const displayName =
+    profile?.first_name || profile?.last_name
+      ? `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim()
+      : profile?.username;
+
   const TABS = [
     { id: "activity", label: "activity", icon: <Sparkles size={14} /> },
     { id: "ratings", label: "my ratings", icon: <Star size={14} /> },
@@ -368,40 +492,278 @@ export default function Profile() {
   ];
 
   if (loading)
-    return (
-      <div className="fixed inset-0 pointer-events-none z-0 opacity-40">
-        <Iridescence color={[0.4, 0.6, 1.0]} speed={0.6} amplitude={0.06} />
-      </div>
-    );
+    return <div className="text-center py-16 text-ink/60">loading...</div>;
 
   return (
-    <div className="max-w-4xl mx-auto lowercase relative z-10 pb-12">
-      {/* Iridescent bg */}
-      <div className="fixed inset-0 pointer-events-none z-0 opacity-40">
-        <Iridescence color={[0.4, 0.6, 1.0]} speed={0.6} amplitude={0.06} />
-      </div>
+    <div className="max-w-4xl mx-auto lowercase relative z-10 pb-12 mt-12 px-4">
+      {/* ── EDIT PROFILE MODAL ── */}
+      {isEditingProfile && (
+        <div
+          className="fixed inset-0 z-[999999] flex items-center justify-center p-4"
+          style={{
+            background: "rgba(255,255,255,0.15)",
+            backdropFilter: "blur(24px) saturate(180%)",
+            animation: "overlayIn 0.2s ease both",
+          }}
+          onClick={() => setIsEditingProfile(false)}
+        >
+          <style>{`
+            @keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
+            @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+            nav, header, .navbar { display: none !important; }
+            .custom-scroll::-webkit-scrollbar { width: 6px; }
+            .custom-scroll::-webkit-scrollbar-track { background: transparent; margin-block: 1.5rem; }
+            .custom-scroll::-webkit-scrollbar-thumb { background: rgba(100,149,237,0.25); border-radius: 10px; }
+            .custom-scroll::-webkit-scrollbar-thumb:hover { background: rgba(100,149,237,0.45); }
+          `}</style>
+          <div
+            className="w-full max-w-md max-h-[90vh] overflow-y-auto custom-scroll p-8 rounded-[2rem] relative flex flex-col gap-5"
+            style={{
+              background: "rgba(255,255,255,0.72)",
+              backdropFilter: "blur(32px) saturate(200%)",
+              border: "1.5px solid rgba(255,255,255,0.9)",
+              boxShadow:
+                "0 12px 48px rgba(80,100,200,0.18), 0 2px 8px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,0.98)",
+              animation: "slideUp 0.25s ease both",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-2xl font-bold font-poppins text-ink mb-2">
+              edit profile
+            </h2>
 
-      {/* ── HEADER TILE ── */}
+            {/* Avatar */}
+            <div className="flex flex-col items-center gap-2 mb-6">
+              <div
+                onClick={() => avatarInputRef.current?.click()}
+                className="w-20 h-20 rounded-full overflow-hidden border-2 border-white/80 cursor-pointer relative group"
+                style={{ background: "rgba(255,255,255,0.5)" }}
+              >
+                {profile?.avatar_url ? (
+                  <img
+                    src={profile.avatar_url}
+                    className="w-full h-full object-cover"
+                    alt="avatar"
+                  />
+                ) : (
+                  <User size={36} className="text-cornflower m-auto mt-5" />
+                )}
+                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-full">
+                  <span className="text-white text-[10px] font-bold">
+                    change
+                  </span>
+                </div>
+                {avatarUploading && (
+                  <div className="absolute inset-0 bg-white/60 flex items-center justify-center rounded-full">
+                    <div className="w-5 h-5 border-2 border-cornflower border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
+              </div>
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleAvatarUpload}
+              />
+              <p className="text-[11px] text-ink/40">tap to change photo</p>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-500 ml-1">
+                    first name
+                  </label>
+                  <input
+                    type="text"
+                    value={editFirstName}
+                    onChange={(e) => setEditFirstName(e.target.value)}
+                    className="px-4 py-3 rounded-xl border border-slate-200 outline-none text-sm bg-white/60 focus:bg-white focus:border-cornflower transition-colors"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-500 ml-1">
+                    last name
+                  </label>
+                  <input
+                    type="text"
+                    value={editLastName}
+                    onChange={(e) => setEditLastName(e.target.value)}
+                    className="px-4 py-3 rounded-xl border border-slate-200 outline-none text-sm bg-white/60 focus:bg-white focus:border-cornflower transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-500 ml-1">
+                  username
+                </label>
+                <input
+                  type="text"
+                  value={editUsername}
+                  onChange={(e) => {
+                    setEditUsername(e.target.value);
+                    setUsernameError("");
+                  }}
+                  className="px-4 py-3 rounded-xl border border-slate-200 outline-none text-sm bg-white/60 focus:bg-white focus:border-cornflower transition-colors"
+                />
+                {usernameError && (
+                  <p className="text-[11px] text-red-500 mt-1">
+                    {usernameError}
+                  </p>
+                )}
+                {editUsername.length > 0 &&
+                  !usernameError &&
+                  (editUsername.length < 3 || editUsername.includes(" ")) && (
+                    <p className="text-[11px] text-red-500 ml-1">
+                      min 3 characters, no spaces
+                    </p>
+                  )}
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-500 ml-1">
+                  email
+                </label>
+                <input
+                  type="email"
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  className="px-4 py-3 rounded-xl border border-slate-200 outline-none text-sm bg-white/60 focus:bg-white focus:border-cornflower transition-colors"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-500 ml-1">
+                  bio ({editBio.length}/160)
+                </label>
+                <textarea
+                  value={editBio}
+                  onChange={(e) => setEditBio(e.target.value.slice(0, 160))}
+                  maxLength={160}
+                  rows={3}
+                  className="px-4 py-3 rounded-xl border border-slate-200 outline-none text-sm bg-white/60 focus:bg-white focus:border-cornflower transition-colors resize-none"
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={updateProfile}
+              className="w-full font-bold py-4 rounded-xl text-white shadow-xl flex items-center justify-center gap-2 text-sm mt-2 hover:opacity-90 transition-opacity"
+              style={{
+                background: "linear-gradient(135deg, #6495ed 0%, #8b6cf7 100%)",
+              }}
+            >
+              save changes
+            </button>
+
+            <div className="mt-2 pt-6 border-t border-slate-200 flex flex-col gap-4">
+              <h3 className="font-poppins text-[10px] font-bold tracking-widest text-slate-400 uppercase ml-1">
+                account settings
+              </h3>
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  onClick={async () => {
+                    await signOut();
+                    navigate("/login");
+                  }}
+                  className="px-5 py-2.5 rounded-xl font-bold text-xs border border-slate-200 bg-white/50 hover:bg-white transition-colors text-slate-700"
+                >
+                  log out
+                </button>
+                <button
+                  onClick={() => {
+                    const nextState = !showDeleteConfirm;
+                    setShowDeleteConfirm(nextState);
+                    if (nextState) {
+                      setTimeout(() => {
+                        deleteConfirmRef.current?.scrollIntoView({
+                          behavior: "smooth",
+                          block: "nearest",
+                        });
+                      }, 100);
+                    }
+                  }}
+                  className="px-5 py-2.5 rounded-xl font-bold text-xs border border-red-100 bg-red-50/50 hover:bg-red-50 text-red-600 transition-colors"
+                >
+                  delete account
+                </button>
+              </div>
+
+              {showDeleteConfirm && (
+                <div
+                  ref={deleteConfirmRef}
+                  className="flex flex-col gap-3 p-5 rounded-[1.25rem] bg-red-50/80 border border-red-100 mt-2"
+                >
+                  <p className="text-xs text-red-900/70 font-medium leading-relaxed">
+                    type{" "}
+                    <span className="font-bold">"{profile?.username}"</span> to
+                    confirm deletion:
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    <input
+                      type="text"
+                      placeholder="username"
+                      value={deleteConfirmText}
+                      onChange={(e) => setDeleteConfirmText(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl outline-none text-sm border border-red-200 bg-white focus:border-red-400 transition-colors"
+                    />
+                    <button
+                      onClick={handleDeleteAccount}
+                      disabled={
+                        deleteConfirmText.toLowerCase() !==
+                        profile?.username?.toLowerCase()
+                      }
+                      className="w-full py-3 rounded-xl font-bold text-sm text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+                      style={{ background: "#dc2626" }}
+                    >
+                      confirm delete
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── HEADER ── */}
       <div
         className="p-6 rounded-[2rem] flex items-center gap-5 mb-4"
         style={glass}
       >
         <div className="relative flex-shrink-0">
-          <div className="w-20 h-20 rounded-full bg-white/60 border-2 border-white/85 flex items-center justify-center shadow-inner">
-            <User size={36} className="text-cornflower" />
+          <div className="w-20 h-20 rounded-full bg-white/60 border-2 border-white/85 flex items-center justify-center shadow-inner overflow-hidden">
+            {profile?.avatar_url ? (
+              <img
+                src={profile.avatar_url}
+                alt="avatar"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <User size={36} className="text-cornflower" />
+            )}
           </div>
           <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-cornflower rounded-full border-2 border-white flex items-center justify-center shadow-md">
             <Sparkles size={11} className="text-white" />
           </div>
         </div>
+
         <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-poppins font-bold text-ink leading-tight">
-            @{profile?.username}
+            {displayName}
           </h1>
-          <p className="font-poppins text-sm text-ink/55 mt-1 leading-relaxed">
-            {profile?.bio || "no bio yet."}
+          <p className="font-poppins text-sm text-ink/50 mt-0.5">
+            @{profile?.username}
           </p>
+          {profile?.bio && (
+            <p className="font-poppins text-sm text-ink/55 mt-1 leading-relaxed">
+              {profile.bio}
+            </p>
+          )}
         </div>
+
         <div className="flex flex-col gap-2 flex-shrink-0">
           {[
             { n: ratings.length, l: "ratings" },
@@ -418,6 +780,34 @@ export default function Profile() {
               <span className="font-poppins text-xs text-ink/45">{l}</span>
             </div>
           ))}
+          <div className="flex gap-2 mt-1">
+            <button
+              onClick={() => setIsEditingProfile(true)}
+              className="px-3 py-1 rounded-full text-xs font-bold hover:scale-105 transition-all"
+              style={{ background: "rgba(100,149,237,0.15)", color: "#6495ed" }}
+            >
+              edit profile
+            </button>
+            <button
+              id="share-btn"
+              onClick={async () => {
+                await navigator.clipboard.writeText(
+                  window.location.origin + "/u/" + profile?.username,
+                );
+                const btn = document.getElementById("share-btn");
+                if (btn) {
+                  btn.textContent = "copied!";
+                  setTimeout(() => {
+                    btn.textContent = "share";
+                  }, 2000);
+                }
+              }}
+              className="px-3 py-1 rounded-full text-xs font-bold hover:scale-105 transition-all"
+              style={{ background: "rgba(100,149,237,0.15)", color: "#6495ed" }}
+            >
+              share
+            </button>
+          </div>
         </div>
       </div>
 
@@ -444,10 +834,9 @@ export default function Profile() {
         ))}
       </div>
 
-      {/* ════════ ACTIVITY TAB ════════ */}
+      {/* ACTIVITY */}
       {activeTab === "activity" && (
-        <div className="grid grid-cols-2 gap-4 animate-fade-in">
-          {/* Feed tile */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="rounded-[1.5rem] overflow-hidden" style={glass}>
             <div className="px-5 pt-4 pb-2">
               <p className="font-poppins text-[10px] font-bold tracking-widest text-ink/40 uppercase">
@@ -473,9 +862,7 @@ export default function Profile() {
             )}
           </div>
 
-          {/* Right column */}
           <div className="flex flex-col gap-4">
-            {/* Stats tile */}
             <div className="rounded-[1.5rem] p-5" style={glass}>
               <p className="font-poppins text-[10px] font-bold tracking-widest text-ink/40 uppercase mb-3">
                 stats
@@ -501,7 +888,6 @@ export default function Profile() {
               </div>
             </div>
 
-            {/* Lists tile */}
             <div
               className="rounded-[1.5rem] flex-1 overflow-hidden"
               style={glass}
@@ -527,10 +913,7 @@ export default function Profile() {
                       className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-white/30 transition-colors group"
                     >
                       <div className="min-w-0">
-                        <p
-                          className="font-semibold text-sm text-ink group-hover:text-cornflower transition-colors truncate"
-                          style={{ fontFamily: "'Balsamiq Sans', cursive" }}
-                        >
+                        <p className="font-poppins font-semibold text-sm text-ink group-hover:text-cornflower transition-colors truncate">
                           {list.title}
                         </p>
                         {list.category && (
@@ -551,9 +934,9 @@ export default function Profile() {
         </div>
       )}
 
-      {/* ════════ RATINGS TAB ════════ */}
+      {/* RATINGS */}
       {activeTab === "ratings" && (
-        <div className="animate-fade-in">
+        <div>
           {ratings.length === 0 ? (
             <div className="p-14 rounded-[2rem] text-center" style={glass}>
               <Star size={32} className="mx-auto text-cornflower/30 mb-3" />
@@ -562,22 +945,32 @@ export default function Profile() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-3 max-w-3xl">
               {ratings.map((r) => (
                 <div
                   key={r.id}
-                  className="p-5 rounded-[1.5rem] flex flex-col gap-2.5 transition-transform hover:-translate-y-0.5"
+                  className="p-5 rounded-[1.5rem] flex flex-col gap-3 transition-transform hover:-translate-y-0.5"
                   style={glass}
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="font-poppins text-[10px] font-bold px-2.5 py-1 bg-white/65 text-cornflower rounded-full border border-white/65">
-                      {r.category}
-                    </span>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-col gap-2 flex-1">
+                      <span className="font-poppins text-[10px] font-bold px-2.5 py-1 bg-white/65 text-cornflower rounded-full border border-white/65 w-fit">
+                        {r.category}
+                      </span>
+                      <h3 className="font-poppins font-bold text-ink text-lg leading-snug">
+                        {r.title}
+                      </h3>
+                      {r.list_title && (
+                        <span className="flex items-center gap-1 font-poppins text-[11px] text-ink/40">
+                          <List size={11} /> {r.list_title}
+                        </span>
+                      )}
+                    </div>
                     <div className="flex gap-0.5 flex-shrink-0">
                       {Array.from({ length: 5 }).map((_, i) => (
                         <Star
                           key={i}
-                          size={13}
+                          size={14}
                           className={
                             i < r.rating
                               ? "fill-cornflower text-cornflower"
@@ -587,21 +980,12 @@ export default function Profile() {
                       ))}
                     </div>
                   </div>
-                  <h3
-                    className="text-ink text-base leading-snug"
-                    style={{
-                      fontFamily: "'Balsamiq Sans', cursive",
-                      fontWeight: 700,
-                    }}
-                  >
-                    {r.title}
-                  </h3>
                   {r.review && (
-                    <p className="font-poppins text-xs text-ink/55 italic bg-white/45 px-3 py-2 rounded-xl border border-white/55 line-clamp-3 leading-relaxed">
+                    <p className="font-poppins text-sm text-ink/70 bg-white/45 px-4 py-3 rounded-xl border border-white/55 leading-relaxed italic">
                       "{r.review}"
                     </p>
                   )}
-                  <p className="font-poppins text-[10px] text-ink/30 mt-auto">
+                  <p className="font-poppins text-[10px] text-ink/30">
                     {timeAgo(r.created_at)}
                   </p>
                 </div>
@@ -611,10 +995,9 @@ export default function Profile() {
         </div>
       )}
 
-      {/* ════════ FRIENDS TAB ════════ */}
+      {/* FRIENDS */}
       {activeTab === "friends" && (
-        <div className="grid grid-cols-2 gap-4 animate-fade-in">
-          {/* Left — search + pending */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="flex flex-col gap-4">
             <div className="p-5 rounded-[1.5rem]" style={glass}>
               <p className="font-poppins text-[10px] font-bold tracking-widest text-ink/40 uppercase mb-4">
@@ -626,14 +1009,6 @@ export default function Profile() {
                   onValueChange={setSearchQuery}
                   onSearch={handleSearch}
                 />
-                {searchQuery.trim() && (
-                  <button
-                    onClick={handleSearch}
-                    className="bg-cornflower text-white font-poppins font-semibold text-xs px-4 py-2 rounded-full hover:scale-105 transition-transform shadow-sm flex-shrink-0"
-                  >
-                    go
-                  </button>
-                )}
               </div>
               {searchResults.length > 0 && (
                 <div className="flex flex-col gap-2">
@@ -687,14 +1062,12 @@ export default function Profile() {
                         <button
                           onClick={() => acceptRequest(req.id)}
                           className="p-1.5 bg-green-500 text-white rounded-lg hover:scale-110 transition-transform"
-                          title="accept"
                         >
                           <UserCheck size={14} />
                         </button>
                         <button
                           onClick={() => declineRequest(req.id)}
                           className="p-1.5 bg-white text-red-400 border border-red-100 rounded-lg hover:scale-110 transition-transform"
-                          title="decline"
                         >
                           <X size={14} />
                         </button>
@@ -706,7 +1079,6 @@ export default function Profile() {
             )}
           </div>
 
-          {/* Right — friends list */}
           <div className="rounded-[1.5rem] h-fit overflow-hidden" style={glass}>
             <div className="px-5 pt-4 pb-2">
               <p className="font-poppins text-[10px] font-bold tracking-widest text-ink/40 uppercase">
@@ -745,9 +1117,6 @@ export default function Profile() {
   );
 }
 
-/* ─────────────────────────────────────────
-   FEED ROW
-───────────────────────────────────────── */
 function FeedRow({ event, timeAgo }) {
   const { type, date, data, list } = event;
 
@@ -814,10 +1183,7 @@ function FeedRow({ event, timeAgo }) {
       </div>
       <div className="flex-1 min-w-0">
         <p className="font-poppins text-[10.5px] text-ink/45 mb-0.5">{label}</p>
-        <p
-          className="font-semibold text-sm text-ink truncate"
-          style={{ fontFamily: "'Balsamiq Sans', cursive" }}
-        >
+        <p className="font-poppins font-semibold text-sm text-ink truncate">
           {titleContent}
         </p>
         {type === "rating" && (

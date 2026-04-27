@@ -6,15 +6,14 @@ import { Plus, X, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 // --- PROJECT IMPORTS ---
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
-import Iridescence from "../components/Iridescence";
 import Folder from "../components/Folder";
 
 // Cleaned up emojis and set labels to caps
 const CATEGORY_FOLDERS = [
-  { id: "Movies", label: "MOVIES", color: "#E05A7A" },
-  { id: "Books", label: "BOOKS", color: "#D97706" },
-  { id: "Music", label: "MUSIC", color: "#7C3AED" },
-  { id: "Places", label: "PLACES", color: "#65A30D" },
+  { id: "Movies", label: "MOVIES", color: "#F0607E" },
+  { id: "Books", label: "BOOKS", color: "#F5A623" },
+  { id: "Music", label: "MUSIC", color: "#A855F7" },
+  { id: "Places", label: "PLACES", color: "#72B30E" },
 ];
 
 const glassStyle = {
@@ -80,6 +79,7 @@ export default function Lists() {
   const [category, setCategory] = useState("Movies");
   const [description, setDescription] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [is_public, setIsPublic] = useState(false);
   const [activeCategory, setActiveCategory] = useState(null);
   const [focusedIdx, setFocusedIdx] = useState(0);
   const wrapperRef = useRef(null);
@@ -114,12 +114,13 @@ export default function Lists() {
     if (!title.trim()) return;
     const { data, error } = await supabase
       .from("lists")
-      .insert([{ user_id: user.id, title, category, description }])
+      .insert([{ user_id: user.id, title, category, description, is_public }])
       .select();
     if (!error && data) {
       setLists([data[0], ...lists]);
       setTitle("");
       setDescription("");
+      setIsPublic(false);
       setIsCreateOpen(false);
       setActiveCategory(category);
     }
@@ -160,9 +161,6 @@ export default function Lists() {
         ${isCreateOpen || activeCategory ? `nav, header, .navbar { display: none !important; }` : ""}
       `}</style>
 
-      <div className="fixed inset-0 pointer-events-none z-0 opacity-40">
-        <Iridescence color={[0.4, 0.6, 1.0]} speed={0.5} amplitude={0.06} />
-      </div>
       <div
         className="fixed inset-0 pointer-events-none z-0 transition-all duration-700"
         style={{
@@ -191,7 +189,11 @@ export default function Lists() {
           ref={wrapperRef}
           // Decreased padding-bottom and adjusted margin-top to bring elements up
           className="flex-1 flex flex-col items-center justify-center pb-4 relative z-10 w-full overflow-hidden transition-opacity duration-300"
-          style={{ opacity: containerWidth > 0 ? 1 : 0, marginTop: "-4vh" }}
+          style={{
+            opacity: activeCategory ? 0 : containerWidth > 0 ? 1 : 0,
+            pointerEvents: activeCategory ? "none" : "auto",
+            marginTop: "-4vh",
+          }}
         >
           {/* Reduced height of container to tightly fit scaled folders */}
           <div className="w-full h-[280px] flex items-center">
@@ -238,7 +240,7 @@ export default function Lists() {
                           <div
                             key={l.id}
                             className="w-full h-full flex flex-col justify-center p-3"
-                            style={{ background: "rgba(255,255,255,0.5)" }}
+                            style={{ background: "rgba(255,255,255,1)" }}
                           >
                             <span
                               style={{
@@ -271,7 +273,7 @@ export default function Lists() {
                               <div
                                 key="more"
                                 className="w-full h-full flex flex-col items-center justify-center"
-                                style={{ background: "rgba(255,255,255,0.6)" }}
+                                style={{ background: "rgba(255,255,255,1)" }}
                               >
                                 <span
                                   style={{
@@ -302,12 +304,18 @@ export default function Lists() {
                         : setFocusedIdx(catIdx)
                     }
                   >
-                    <Folder
-                      color={cat.color}
-                      size={1.6}
-                      items={folderItems}
-                      isOpen={isFocused ? undefined : false}
-                    />
+                    <div
+                      style={{
+                        filter: `drop-shadow(0 10px 36px ${cat.color}80) drop-shadow(0 2px 8px rgba(0,0,0,0.22))`,
+                      }}
+                    >
+                      <Folder
+                        color={cat.color}
+                        size={1.6}
+                        items={folderItems}
+                        isOpen={isFocused ? undefined : false}
+                      />
+                    </div>
                   </CarouselItem>
                 );
               })}
@@ -329,13 +337,12 @@ export default function Lists() {
             <div className="flex items-center gap-4">
               <button
                 onClick={() => setActiveCategory(focusedCat.id)}
-                className="flex items-center gap-2 px-8 py-3 rounded-full transition-all hover:scale-105 active:scale-95"
+                className="flex items-center gap-2 px-8 py-3 rounded-full transition-all hover:scale-105 active:scale-95 font-extrabold text-sm"
                 style={{
-                  fontWeight: 800,
-                  fontSize: 13,
-                  background: "transparent", // Removed solid white background for a cleaner look
-                  border: `2px solid ${focusedCat.color}50`,
+                  background: `${focusedCat.color}20`,
+                  border: `2px solid ${focusedCat.color}`,
                   color: focusedCat.color,
+                  fontWeight: 800,
                 }}
               >
                 OPEN {focusedCat.label} <ArrowRight size={14} strokeWidth={3} />
@@ -360,7 +367,7 @@ export default function Lists() {
         </div>
       )}
 
-      {!loading && (
+      {!loading && !activeCategory && (
         // Adjusted bottom offset from 10 to 6
         <div className="absolute bottom-6 left-0 right-0 z-20 flex items-center justify-center gap-5">
           <button
@@ -404,7 +411,7 @@ export default function Lists() {
 
       {isCreateOpen && (
         <div
-          className="fixed inset-0 z-[99999] flex items-center justify-center p-4"
+          className="fixed inset-0 z-[999999] flex items-center justify-center p-4"
           style={{
             background: "rgba(255,255,255,0.15)",
             backdropFilter: "blur(24px) saturate(180%)",
@@ -459,6 +466,22 @@ export default function Lists() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
               />
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={is_public}
+                  onChange={(e) => setIsPublic(e.target.checked)}
+                  id="public-toggle-create"
+                  className="w-4 h-4 rounded cursor-pointer"
+                />
+                <label
+                  htmlFor="public-toggle-create"
+                  className="text-xs font-bold cursor-pointer"
+                  style={{ color: "rgba(26,26,46,0.6)" }}
+                >
+                  make this list public
+                </label>
+              </div>
               <button
                 type="submit"
                 className="w-full font-bold py-4 rounded-xl text-white shadow-xl flex items-center justify-center gap-2  text-sm"
@@ -482,7 +505,7 @@ export default function Lists() {
           <div
             className="absolute inset-0"
             style={{
-              background: "rgba(255,255,255,0.15)",
+              background: "rgba(200,210,240,0.55)",
               backdropFilter: "blur(24px) saturate(180%)",
             }}
             onClick={() => setActiveCategory(null)}
@@ -493,13 +516,10 @@ export default function Lists() {
           >
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-10 pb-7 shrink-0 border-b border-white/25">
               <div className="flex flex-col gap-1.5">
-                <span
-                  className="text-[10px] font-black tracking-[0.3em] uppercase"
-                  style={{ color: activeFolderObj.color }}
-                >
+                <span className="text-[10px] font-black tracking-[0.3em] uppercase text-white">
                   {groupedLists[activeCategory]?.length || 0} collections
                 </span>
-                <h2 className="text-4xl md:text-5xl font-extrabold flex items-center gap-3">
+                <h2 className="text-4xl md:text-5xl font-extrabold flex items-center gap-3 text-white">
                   {activeCategory.toUpperCase()}
                 </h2>
               </div>
@@ -527,13 +547,17 @@ export default function Lists() {
                 <Link
                   key={list.id}
                   to={`/lists/${list.id}`}
-                  className="group flex flex-col h-full rounded-2xl p-5 bg-white/85 backdrop-blur-xl border border-white/95 shadow-sm hover:-translate-y-1 transition-all"
+                  className="group flex flex-col h-full rounded-2xl p-5 bg-white border border-slate-100 shadow-sm hover:-translate-y-1 transition-all relative"
                   style={{
                     animationDelay: `${i * 45}ms`,
                     animation: "slideUp 0.35s ease both",
                   }}
                 >
-                  <h3 className="font-extrabold text-base mb-2">
+                  {/* Lock/Globe icon */}
+                  <div className="absolute bottom-3 right-3 text-xl">
+                    {list.is_public ? "🌐" : "🔒"}
+                  </div>
+                  <h3 className="font-extrabold text-base mb-2 pr-6">
                     {list.title}
                   </h3>
                   <p className="text-xs text-slate-400 line-clamp-2 mt-auto">

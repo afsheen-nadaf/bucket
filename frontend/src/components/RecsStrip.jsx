@@ -12,83 +12,6 @@ const categoryConfig = {
   default: { bg: "bg-[#E8EEF9]", text: "text-[#6495ED]", emoji: "✨" },
 };
 
-// Dummy cards retained to show off the dynamic fanning effect
-/*const DUMMY_RECS = [
-  {
-    external_id: "dummy-1",
-    item_name: "Spirited Away",
-    category: "Movies",
-    cover_url:
-      "https://image.tmdb.org/t/p/w500/3W0v956XxSG5xgm7LB6qu8ExYJ2.jpg",
-    friend_label: "@bucket_team loved this!",
-    because_label: "because you saved Howl's Moving Castle",
-    review: "Absolutely magical from start to finish.",
-    isDummy: true,
-  },
-  {
-    external_id: "dummy-2",
-    item_name: "The Secret History",
-    category: "Books",
-    cover_url: "https://covers.openlibrary.org/b/id/8259443-L.jpg",
-    friend_label: "@bookworm99 loved this!",
-    because_label: "because you saved The Picture of Dorian Gray",
-    review: "Dark academia at its finest. Couldn't put it down!",
-    isDummy: true,
-  },
-  {
-    external_id: "dummy-3",
-    item_name: "Inception",
-    category: "Movies",
-    cover_url:
-      "https://image.tmdb.org/t/p/w500/9gk7adHYeDvHkCSEqAvQNLV5Uge.jpg",
-    friend_label: "@cinephile loved this!",
-    because_label: "because you love Sci-Fi",
-    review: "A masterpiece of modern cinema.",
-    isDummy: true,
-  },
-  {
-    external_id: "dummy-4",
-    item_name: "Central Park",
-    category: "Places",
-    cover_url: null,
-    friend_label: "@traveler loved this!",
-    because_label: "because you visited New York",
-    review: "A beautiful oasis in the city.",
-    isDummy: true,
-  },
-  {
-    external_id: "dummy-5",
-    item_name: "1984",
-    category: "Books",
-    cover_url: "https://covers.openlibrary.org/b/id/153256-L.jpg",
-    friend_label: "@reader loved this!",
-    because_label: "because you read Fahrenheit 451",
-    review: "A chilling and important classic.",
-    isDummy: true,
-  },
-  {
-    external_id: "dummy-6",
-    item_name: "Abbey Road",
-    category: "Music",
-    cover_url:
-      "https://upload.wikimedia.org/wikipedia/en/4/42/Beatles_-_Abbey_Road.jpg",
-    friend_label: "@musicfan loved this!",
-    because_label: "because you listen to Classic Rock",
-    review: "Every track is perfect.",
-    isDummy: true,
-  },
-  {
-    external_id: "dummy-7",
-    item_name: "The Grand Canyon",
-    category: "Places",
-    cover_url: null,
-    friend_label: "@nomad loved this!",
-    because_label: "because you love nature",
-    review: "Breathtaking scale and beauty.",
-    isDummy: true,
-  },
-];*/
-
 export default function RecsStrip() {
   const [recs, setRecs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -246,8 +169,8 @@ export default function RecsStrip() {
 
       {/* Section Header */}
       <div className="flex items-center justify-center gap-2 mb-10 px-2 text-center">
-        <Sparkles size={28} className="text-cornflower" />
-        <h2 className="text-2xl font-balsamiq font-bold text-ink tracking-wide">
+        <Sparkles size={28} className="text-white drop-shadow-sm" />
+        <h2 className="text-2xl font-poppins font-semibold text-white tracking-wide drop-shadow-sm">
           we think you'll love
         </h2>
       </div>

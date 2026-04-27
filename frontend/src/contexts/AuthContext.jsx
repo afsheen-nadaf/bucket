@@ -27,12 +27,12 @@ export const AuthProvider = ({ children }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email, password, username) => {
+  const signUp = async (email, password, first_name, last_name, username) => {
     return await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { username }, // This triggers our Phase 2 SQL function!
+        data: { first_name, last_name, username }, // Passed to trigger function
       },
     });
   };

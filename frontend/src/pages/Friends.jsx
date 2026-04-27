@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { Link } from "react-router-dom";
-import { Search, UserPlus, UserCheck, X } from "lucide-react";
+import { Search, UserPlus, UserCheck, X, Loader } from "lucide-react";
 
 export default function Friends() {
   const { user } = useAuth();
@@ -10,6 +10,8 @@ export default function Friends() {
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchTimeout, setSearchTimeout] = useState(null);
 
   // Social state
   const [pendingRequests, setPendingRequests] = useState([]);
@@ -65,10 +67,14 @@ export default function Friends() {
     }
   };
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (!searchQuery.trim()) return;
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
 
+    setIsSearching(true);
     const { data } = await supabase
       .from("profiles")
       .select("*")
@@ -77,7 +83,31 @@ export default function Friends() {
       .limit(10);
 
     setSearchResults(data || []);
+    setIsSearching(false);
   };
+
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    if (searchTimeout) clearTimeout(searchTimeout);
+    setIsSearching(true);
+
+    const timeout = setTimeout(() => {
+      handleSearch();
+    }, 300);
+
+    setSearchTimeout(timeout);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    return () => {
+      if (searchTimeout) clearTimeout(searchTimeout);
+    };
+  }, [searchTimeout]);
 
   const sendFriendRequest = async (receiverId) => {
     const { error } = await supabase
@@ -113,7 +143,7 @@ export default function Friends() {
         {/* Search Users */}
         <div className="bg-white p-6 rounded-2xl border border-warmGray/10 shadow-sm">
           <h2 className="text-2xl text-ink mb-4">Find Friends</h2>
-          <form onSubmit={handleSearch} className="flex gap-2 relative">
+          <div className="flex gap-2 relative">
             <div className="relative flex-1">
               <Search
                 className="absolute left-4 top-1/2 -translate-y-1/2 text-warmGray/50"
@@ -122,18 +152,18 @@ export default function Friends() {
               <input
                 type="text"
                 placeholder="Search by username..."
-                className="w-full pl-12 pr-4 py-2.5 rounded-xl border border-warmGray/30 bg-cream/50 focus:border-cornflower outline-none"
+                className="w-full pl-12 pr-10 py-2.5 rounded-xl border border-warmGray/30 bg-cream/50 focus:border-cornflower outline-none"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
+              {isSearching && (
+                <Loader
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-cornflower animate-spin"
+                  size={18}
+                />
+              )}
             </div>
-            <button
-              type="submit"
-              className="bg-ink text-white px-4 rounded-xl font-medium"
-            >
-              Search
-            </button>
-          </form>
+          </div>
 
           {searchResults.length > 0 && (
             <div className="mt-4 flex flex-col gap-2">

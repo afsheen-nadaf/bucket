@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import ReactDOM from "react-dom";
 import { supabase } from "../lib/supabase";
 import { useNavigate } from "react-router-dom";
 import { Check, Plus, X } from "lucide-react";
@@ -9,6 +10,14 @@ const categoryConfig = {
   music: { bg: "bg-[#EEEDFE]", text: "text-[#3C3489]", emoji: "🎵" },
   places: { bg: "bg-[#EAF3DE]", text: "text-[#27500A]", emoji: "📍" },
   default: { bg: "bg-[#E8EEF9]", text: "text-[#6495ED]", emoji: "✨" },
+};
+
+const glassStyle = {
+  background: "rgba(255,255,255,0.72)",
+  backdropFilter: "blur(32px) saturate(200%)",
+  border: "1.5px solid rgba(255,255,255,0.9)",
+  boxShadow:
+    "0 12px 48px rgba(80,100,200,0.18), 0 2px 8px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,0.98)",
 };
 
 export default function AddToListModal({ item, onClose, onSuccess }) {
@@ -87,33 +96,49 @@ export default function AddToListModal({ item, onClose, onSuccess }) {
     (l) => l.category.toLowerCase() === item.category?.toLowerCase(),
   );
 
-  return (
-    <div
-      className="fixed inset-0 z-50 bg-ink/60 backdrop-blur-sm flex items-center justify-center p-4 lowercase animate-fade-in"
-      onClick={onClose}
-    >
+  const modalContent = (
+    <>
+      <style>{`
+        @keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp   { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        ${`nav, header, .navbar { display: none !important; }`}
+      `}</style>
       <div
-        className="bg-white rounded-[20px] w-full max-w-[420px] shadow-2xl flex flex-col max-h-[85vh] overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header Preview */}
-        <div className="flex justify-between items-center p-6 border-b border-warmGray/10 bg-cream/30 relative">
+        className="fixed inset-0"
+        style={{
+          background: "rgba(255,255,255,0.15)",
+          backdropFilter: "blur(24px) saturate(180%)",
+          zIndex: 9999,
+          animation: "overlayIn 0.2s ease both",
+        }}
+        onClick={onClose}
+      />
+      <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 lowercase pointer-events-none">
+        <div
+          className="w-full max-w-md p-8 rounded-[2rem] relative flex flex-col pointer-events-auto"
+          style={{
+            ...glassStyle,
+            animation: "slideUp 0.25s ease both",
+            maxHeight: "85vh",
+            overflow: "auto",
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
           <button
             onClick={onClose}
-            className="absolute right-4 top-4 text-warmGray hover:text-ink transition-colors p-2 bg-cream rounded-full z-10"
+            className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-slate-600"
           >
-            <X size={20} />
+            <X size={16} strokeWidth={2.5} />
           </button>
-          <div className="flex items-center gap-4">
+
+          <div className="flex items-center gap-3 mb-6">
             <div
-              className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shrink-0 ${catStyle.bg} border border-black/5`}
+              className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl shrink-0 ${catStyle.bg} border border-black/5`}
             >
               {catStyle.emoji}
             </div>
-            <div className="overflow-hidden pr-8">
-              <h3 className="font-poppins font-bold text-lg text-ink truncate">
-                {item.item_name}
-              </h3>
+            <div>
+              <h2 className="font-bold text-lg">{item.item_name}</h2>
               <span
                 className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full inline-block mt-1 ${catStyle.bg} ${catStyle.text}`}
               >
@@ -121,79 +146,92 @@ export default function AddToListModal({ item, onClose, onSuccess }) {
               </span>
             </div>
           </div>
-        </div>
 
-        {/* List Selection */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <h2 className="font-sniglet font-extrabold text-2xl text-ink mb-4">
-            add to a list
-          </h2>
+          <h3 className="font-bold text-lg mb-4">add to a list</h3>
 
           {loading ? (
-            <div className="text-warmGray text-sm text-center py-6 animate-pulse">
+            <div className="text-center py-6 animate-pulse text-sm opacity-60">
               loading lists...
             </div>
           ) : (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-3 mb-6">
               {applicableLists.length > 0 ? (
-                applicableLists.map((list) => (
-                  <button
-                    key={list.id}
-                    onClick={() => handleSaveToList(list.id)}
-                    disabled={addingId === list.id || addedId === list.id}
-                    className="flex items-center justify-between p-4 rounded-2xl border border-warmGray/10 hover:border-cornflower/30 hover:bg-lightTint/30 transition-all text-left group disabled:opacity-80"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${catStyle.bg} border border-black/5`}
-                      >
-                        {catStyle.emoji}
+                applicableLists.map((list) => {
+                  const categoryColor =
+                    categoryConfig[list.category?.toLowerCase()]?.bg ||
+                    categoryConfig.default.bg;
+                  const categoryText =
+                    categoryConfig[list.category?.toLowerCase()]?.text ||
+                    categoryConfig.default.text;
+                  const categoryEmoji =
+                    categoryConfig[list.category?.toLowerCase()]?.emoji ||
+                    categoryConfig.default.emoji;
+                  return (
+                    <button
+                      key={list.id}
+                      onClick={() => handleSaveToList(list.id)}
+                      disabled={addingId === list.id || addedId === list.id}
+                      className="flex items-center justify-between px-4 py-3 rounded-full transition-all text-left group disabled:opacity-70"
+                      style={{
+                        background:
+                          addedId === list.id ? "#dcfce7" : categoryColor,
+                      }}
+                    >
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <span className="text-lg flex-shrink-0">
+                          {categoryEmoji}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="font-bold text-sm truncate">
+                            {list.title}
+                          </p>
+                          <p className="text-xs opacity-70 font-medium">
+                            {list.item_count} items
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-bold text-ink group-hover:text-cornflower transition-colors truncate">
-                          {list.title}
-                        </p>
-                        <p className="text-xs text-warmGray font-medium">
-                          {list.item_count} items
-                        </p>
-                      </div>
-                    </div>
 
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center">
-                      {addedId === list.id ? (
-                        <div className="bg-green-100 text-[#27500A] w-full h-full rounded-full flex items-center justify-center animate-fade-in">
-                          <Check size={18} strokeWidth={3} />
-                        </div>
-                      ) : addingId === list.id ? (
-                        <div className="w-4 h-4 rounded-full border-2 border-cornflower border-t-transparent animate-spin"></div>
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-cream group-hover:bg-cornflower text-transparent group-hover:text-white transition-colors flex items-center justify-center">
-                          <Plus size={18} strokeWidth={3} />
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                ))
+                      <div className="w-6 h-6 flex items-center justify-center flex-shrink-0 ml-2">
+                        {addedId === list.id ? (
+                          <div className="text-[#27500A] flex items-center justify-center animate-fade-in">
+                            <Check size={16} strokeWidth={3} />
+                          </div>
+                        ) : addingId === list.id ? (
+                          <div className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin opacity-70"></div>
+                        ) : (
+                          <Plus
+                            size={16}
+                            strokeWidth={3}
+                            className="opacity-50 group-hover:opacity-100 transition-opacity"
+                          />
+                        )}
+                      </div>
+                    </button>
+                  );
+                })
               ) : (
-                <div className="text-warmGray/70 text-sm py-4 italic text-center bg-cream/50 rounded-2xl border border-warmGray/10">
+                <div className="text-center text-sm py-4 opacity-60">
                   no existing lists for this category.
                 </div>
               )}
             </div>
           )}
-        </div>
 
-        {/* Create New Action */}
-        <div className="p-4 border-t border-warmGray/10 bg-white">
           <button
             onClick={handleCreateNew}
-            className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl border-2 border-dashed border-warmGray/30 text-warmGray hover:text-ink hover:border-ink hover:bg-cream/50 transition-all font-bold text-sm"
+            type="button"
+            className="w-full font-bold py-4 rounded-xl text-white shadow-xl flex items-center justify-center gap-2 text-sm font-poppins transition-all hover:scale-105 active:scale-95"
+            style={{
+              background: "linear-gradient(135deg, #6495ed 0%, #8b6cf7 100%)",
+            }}
           >
-            <Plus size={18} />
+            <Plus size={16} strokeWidth={2.5} />
             create a new list
           </button>
         </div>
       </div>
-    </div>
+    </>
   );
+
+  return ReactDOM.createPortal(modalContent, document.body);
 }
