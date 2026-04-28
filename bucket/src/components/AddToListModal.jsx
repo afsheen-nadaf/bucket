@@ -45,9 +45,12 @@ export default function AddToListModal({ item, onClose, onSuccess }) {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      const res = await fetch("http://localhost:3001/api/lists/mine", {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
+      const res = await fetch(
+        "http://import.meta.env.VITE_API_URL/api/lists/mine",
+        {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        },
+      );
       const data = await res.json();
       setLists(data.lists || []);
     } catch (err) {
@@ -63,20 +66,23 @@ export default function AddToListModal({ item, onClose, onSuccess }) {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      await fetch(`http://localhost:3001/api/lists/${listId}/items`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
+      await fetch(
+        `http://import.meta.env.VITE_API_URL/api/lists/${listId}/items`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            item_name: item.item_name,
+            category: item.category,
+            external_id: item.external_id,
+            cover_url: item.cover_url, // Sending cover_url for the DB
+            creator: item.creator, // Sending creator for the DB
+          }),
         },
-        body: JSON.stringify({
-          item_name: item.item_name,
-          category: item.category,
-          external_id: item.external_id,
-          cover_url: item.cover_url, // Sending cover_url for the DB
-          creator: item.creator, // Sending creator for the DB
-        }),
-      });
+      );
 
       setAddedId(listId);
       setTimeout(() => {
