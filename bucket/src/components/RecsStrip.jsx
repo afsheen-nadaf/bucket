@@ -42,7 +42,7 @@ export default function RecsStrip() {
       } = await supabase.auth.getSession();
       if (!session) return;
       const res = await fetch(
-        "http://import.meta.env.VITE_API_URL/api/recommendations",
+        "https://import.meta.env.VITE_API_URL/api/recommendations",
         {
           headers: { Authorization: `Bearer ${session.access_token}` },
         },
@@ -69,7 +69,7 @@ export default function RecsStrip() {
         const {
           data: { session },
         } = await supabase.auth.getSession();
-        await fetch("http://import.meta.env.VITE_API_URL/api/dismissed-recs", {
+        await fetch("https://import.meta.env.VITE_API_URL/api/dismissed-recs", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

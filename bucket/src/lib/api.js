@@ -1,4 +1,4 @@
-const API_URL = "http://import.meta.env.VITE_API_URL/api";
+const API_URL = "https://import.meta.env.VITE_API_URL/api";
 
 export const searchExternalApi = async (category, query, location = null) => {
   try {
