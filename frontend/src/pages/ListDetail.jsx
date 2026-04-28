@@ -258,6 +258,53 @@ export default function ListDetail() {
       </div>
     );
 
+  // Check if list is private and user is not the owner
+  if (!list.is_public && user && user.id !== list.user_id) {
+    return (
+      <div className="relative lowercase min-h-screen pb-24 overflow-x-hidden flex items-center justify-center">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 md:px-8 text-center">
+          <Link
+            to="/lists"
+            className="inline-flex items-center gap-1.5 text-xs font-bold tracking-wide mb-8 transition-all hover:gap-2.5 text-white"
+          >
+            <ArrowLeft size={14} strokeWidth={2.5} />
+            back to lists
+          </Link>
+          <div
+            className="rounded-[1.75rem] p-12 md:p-16 flex flex-col gap-8 items-center"
+            style={glassCard}
+          >
+            <span className="text-6xl">🔒</span>
+            <div className="flex flex-col gap-4">
+              <h1
+                className="text-3xl md:text-4xl font-poppins font-extrabold"
+                style={{ color: "#1a1a2e" }}
+              >
+                This list is private
+              </h1>
+              <p
+                className="text-sm md:text-base"
+                style={{ color: "rgba(26,26,46,0.6)" }}
+              >
+                You don't have permission to view this list.
+              </p>
+            </div>
+            <Link
+              to="/"
+              className="px-8 py-3 rounded-xl text-white text-sm font-bold transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg"
+              style={{
+                background: "linear-gradient(135deg, #6495ed 0%, #8b6cf7 100%)",
+                boxShadow: "0 6px 20px rgba(100,149,237,0.35)",
+              }}
+            >
+              go home
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const meta = CATEGORY_META[list.category] || {
     color: "#6495ed",
     emoji: "✦",
@@ -408,6 +455,21 @@ export default function ListDetail() {
                     >
                       {list.category}
                     </span>
+                    {isOwner && (
+                      <span
+                        className="text-[10px] font-bold px-3 py-1 rounded-full flex items-center gap-1"
+                        style={{
+                          background: list.is_public
+                            ? "rgba(34, 197, 94, 0.15)"
+                            : "rgba(107, 114, 128, 0.15)",
+                          color: list.is_public
+                            ? "rgba(34, 197, 94, 0.7)"
+                            : "rgba(107, 114, 128, 0.7)",
+                        }}
+                      >
+                        {list.is_public ? "🌐 public" : "🔒 private"}
+                      </span>
+                    )}
                     {!isOwner && (
                       <span
                         className="text-[10px] font-bold px-3 py-1 rounded-full"

@@ -42,6 +42,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   const signOut = async () => {
+    // Clear all local/session storage before signing out
+    localStorage.clear();
+    sessionStorage.clear();
     return await supabase.auth.signOut();
   };
 

@@ -2,8 +2,8 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/supabase";
-import { Sparkles } from "lucide-react";
-import Iridescence from "../components/Iridescence";
+import { Sparkles, Eye, EyeOff } from "lucide-react";
+import AuthBackground from "../components/AuthBackground";
 
 export default function Signup() {
   const [firstName, setFirstName] = useState("");
@@ -12,6 +12,10 @@ export default function Signup() {
   const [usernameError, setUsernameError] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const { signUp } = useAuth();
@@ -43,6 +47,7 @@ export default function Signup() {
   const handleSignup = async (e) => {
     e.preventDefault();
     setError(null);
+    setPasswordError("");
 
     if (!validateUsername(username)) {
       setUsernameError("Username invalid");
@@ -51,6 +56,16 @@ export default function Signup() {
 
     if (!firstName.trim() || !lastName.trim()) {
       setError("First and last name are required");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setPasswordError("Passwords do not match");
+      return;
+    }
+
+    if (password.length < 6) {
+      setPasswordError("Password must be at least 6 characters");
       return;
     }
 
@@ -79,18 +94,8 @@ export default function Signup() {
 
   return (
     <div className="relative min-h-screen flex flex-col justify-center items-center p-4 overflow-x-hidden">
-      {/* Iridescent background */}
-      <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 0,
-          pointerEvents: "none",
-          opacity: 0.4,
-        }}
-      >
-        <Iridescence color={[0.4, 0.6, 1.0]} speed={0.5} amplitude={0.06} />
-      </div>
+      {/* Memoized background - never re-renders on parent state changes */}
+      <AuthBackground />
 
       {/* Glass card */}
       <div
@@ -266,25 +271,85 @@ export default function Signup() {
             >
               Password
             </label>
-            <input
-              type="password"
-              required
-              className="px-4 py-3 rounded-[0.75rem] outline-none transition-all text-sm"
-              style={{
-                background: "rgba(255,255,255,0.75)",
-                border: "1.5px solid rgba(255,255,255,0.8)",
-                color: "#1a1a2e",
-              }}
-              onFocus={(e) =>
-                (e.target.style.borderColor = "rgba(100,149,237,0.5)")
-              }
-              onBlur={(e) =>
-                (e.target.style.borderColor = "rgba(255,255,255,0.8)")
-              }
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                required
+                className="w-full px-4 py-3 rounded-[0.75rem] outline-none transition-all text-sm pr-12"
+                style={{
+                  background: "rgba(255,255,255,0.75)",
+                  border: passwordError
+                    ? "1.5px solid rgba(220,38,38,0.5)"
+                    : "1.5px solid rgba(255,255,255,0.8)",
+                  color: "#1a1a2e",
+                }}
+                onFocus={(e) =>
+                  !passwordError &&
+                  (e.target.style.borderColor = "rgba(100,149,237,0.5)")
+                }
+                onBlur={(e) =>
+                  !passwordError &&
+                  (e.target.style.borderColor = "rgba(255,255,255,0.8)")
+                }
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </div>
+
+          {/* Confirm Password */}
+          <div className="flex flex-col gap-2">
+            <label
+              className="text-xs font-bold uppercase tracking-wide"
+              style={{ color: "rgba(26,26,46,0.6)" }}
+            >
+              Confirm Password
+            </label>
+            <div className="relative">
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                required
+                className="w-full px-4 py-3 rounded-[0.75rem] outline-none transition-all text-sm pr-12"
+                style={{
+                  background: "rgba(255,255,255,0.75)",
+                  border: passwordError
+                    ? "1.5px solid rgba(220,38,38,0.5)"
+                    : "1.5px solid rgba(255,255,255,0.8)",
+                  color: "#1a1a2e",
+                }}
+                onFocus={(e) =>
+                  !passwordError &&
+                  (e.target.style.borderColor = "rgba(100,149,237,0.5)")
+                }
+                onBlur={(e) =>
+                  !passwordError &&
+                  (e.target.style.borderColor = "rgba(255,255,255,0.8)")
+                }
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+            {passwordError && (
+              <p className="text-xs mt-1" style={{ color: "#dc2626" }}>
+                {passwordError}
+              </p>
+            )}
           </div>
 
           <button

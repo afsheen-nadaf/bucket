@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { Sparkles } from "lucide-react";
-import Iridescence from "../components/Iridescence";
+import { Sparkles, Eye, EyeOff } from "lucide-react";
+import AuthBackground from "../components/AuthBackground";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const { signIn } = useAuth();
@@ -18,24 +19,25 @@ export default function Login() {
     setIsLoading(true);
     const { error } = await signIn(email, password);
     setIsLoading(false);
-    if (error) setError(error.message);
-    else navigate("/");
+    if (error) {
+      // Handle case where user account was deleted
+      if (
+        error.message?.includes("Invalid login credentials") ||
+        error.message?.includes("user not found")
+      ) {
+        setError("No account found, please sign up");
+      } else {
+        setError(error.message);
+      }
+    } else {
+      navigate("/");
+    }
   };
 
   return (
     <div className="relative min-h-screen flex flex-col justify-center items-center p-4 overflow-x-hidden">
-      {/* Iridescent background */}
-      <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 0,
-          pointerEvents: "none",
-          opacity: 0.4,
-        }}
-      >
-        <Iridescence color={[0.4, 0.6, 1.0]} speed={0.5} amplitude={0.06} />
-      </div>
+      {/* Memoized background - never re-renders on parent state changes */}
+      <AuthBackground />
 
       {/* Glass card */}
       <div
@@ -110,25 +112,34 @@ export default function Login() {
             >
               Password
             </label>
-            <input
-              type="password"
-              required
-              className="px-4 py-3 rounded-[0.75rem] outline-none transition-all text-sm"
-              style={{
-                background: "rgba(255,255,255,0.75)",
-                border: "1.5px solid rgba(255,255,255,0.8)",
-                color: "#1a1a2e",
-              }}
-              onFocus={(e) =>
-                (e.target.style.borderColor = "rgba(100,149,237,0.5)")
-              }
-              onBlur={(e) =>
-                (e.target.style.borderColor = "rgba(255,255,255,0.8)")
-              }
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                required
+                className="w-full px-4 py-3 rounded-[0.75rem] outline-none transition-all text-sm pr-12"
+                style={{
+                  background: "rgba(255,255,255,0.75)",
+                  border: "1.5px solid rgba(255,255,255,0.8)",
+                  color: "#1a1a2e",
+                }}
+                onFocus={(e) =>
+                  (e.target.style.borderColor = "rgba(100,149,237,0.5)")
+                }
+                onBlur={(e) =>
+                  (e.target.style.borderColor = "rgba(255,255,255,0.8)")
+                }
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
 
           <button

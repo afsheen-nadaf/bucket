@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import ReactDOM from "react-dom";
 import { supabase } from "../lib/supabase";
-import { useNavigate } from "react-router-dom";
 import { Check, Plus, X } from "lucide-react";
+import CreateListModal from "./CreateListModal";
 
 const categoryConfig = {
   books: { bg: "bg-[#FAEEDA]", text: "text-[#633806]", emoji: "📖" },
@@ -21,11 +21,11 @@ const glassStyle = {
 };
 
 export default function AddToListModal({ item, onClose, onSuccess }) {
-  const navigate = useNavigate();
   const [lists, setLists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [addingId, setAddingId] = useState(null);
   const [addedId, setAddedId] = useState(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const catStyle =
     categoryConfig[item.category?.toLowerCase()] || categoryConfig.default;
@@ -89,7 +89,12 @@ export default function AddToListModal({ item, onClose, onSuccess }) {
   };
 
   const handleCreateNew = () => {
-    navigate("/lists");
+    setShowCreateModal(true);
+  };
+
+  const handleCreateSuccess = () => {
+    setShowCreateModal(false);
+    onSuccess(item.external_id);
   };
 
   const applicableLists = lists.filter(
@@ -233,5 +238,17 @@ export default function AddToListModal({ item, onClose, onSuccess }) {
     </>
   );
 
-  return ReactDOM.createPortal(modalContent, document.body);
+  return (
+    <>
+      {ReactDOM.createPortal(modalContent, document.body)}
+      {showCreateModal && (
+        <CreateListModal
+          category={item.category}
+          item={item}
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={handleCreateSuccess}
+        />
+      )}
+    </>
+  );
 }
