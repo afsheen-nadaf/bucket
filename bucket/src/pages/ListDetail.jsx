@@ -132,7 +132,7 @@ export default function ListDetail() {
         .from("list_items")
         .select("*")
         .eq("list_id", id)
-        .order("added_at", { ascending: false });
+        .order("created_at", { ascending: false });
       setItems(itemsData || []);
     }
   };
