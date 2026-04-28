@@ -25,7 +25,7 @@ export default function Login() {
         error.message?.includes("Invalid login credentials") ||
         error.message?.includes("user not found")
       ) {
-        setError("No account found, please sign up");
+        setError("looks like this account doesn't exist, please create one!");
       } else {
         setError(error.message);
       }
@@ -67,7 +67,6 @@ export default function Login() {
           <div
             className="px-4 py-3 rounded-xl text-sm font-medium"
             style={{
-              background: "rgba(220, 38, 38, 0.1)",
               color: "#dc2626",
             }}
           >
