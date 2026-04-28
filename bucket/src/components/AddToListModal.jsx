@@ -46,7 +46,7 @@ export default function AddToListModal({ item, onClose, onSuccess }) {
         data: { session },
       } = await supabase.auth.getSession();
       const res = await fetch(
-        "https://import.meta.env.VITE_API_URL/api/lists/mine",
+        `${import.meta.env.VITE_API_URL}/api/lists/mine`,
         {
           headers: { Authorization: `Bearer ${session.access_token}` },
         },
@@ -67,7 +67,7 @@ export default function AddToListModal({ item, onClose, onSuccess }) {
         data: { session },
       } = await supabase.auth.getSession();
       await fetch(
-        `https://import.meta.env.VITE_API_URL/api/lists/${listId}/items`,
+        `${import.meta.env.VITE_API_URL}/api/lists/${listId}/items`,
         {
           method: "POST",
           headers: {
