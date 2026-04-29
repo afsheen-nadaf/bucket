@@ -14,9 +14,15 @@ export default function UpdatePassword() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (window.location.hash.includes("access_token")) {
-      window.history.replaceState(null, "", window.location.pathname);
-    }
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY") {
+        // token has been read, now safe to strip the hash
+        window.history.replaceState(null, "", window.location.pathname);
+      }
+    });
+    return () => subscription.unsubscribe();
   }, []);
 
   const handleUpdate = async (e) => {

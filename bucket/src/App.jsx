@@ -12,44 +12,44 @@ import Profile from "./pages/Profile";
 import Friends from "./pages/Friends";
 import PublicProfile from "./pages/PublicProfile";
 import SplashScreen from "./components/SplashScreen";
-import UpdatePassword from "./pages/UpdatePassword"; // We'll build this next!
+import UpdatePassword from "./pages/UpdatePassword";
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
 
   return (
-    <AuthProvider>
+    <>
       {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
-
       <BrowserRouter>
-        <Routes>
-          {/* Public Auth Routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/update-password" element={<UpdatePassword />} />
+        <AuthProvider>
+          <Routes>
+            {/* Public Auth Routes */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/update-password" element={<UpdatePassword />} />
 
-          {/* Main App Layout */}
-          <Route element={<Layout />}>
-            {/* Authenticated / Protected Routes */}
-            <Route
-              element={
-                <ProtectedRoute>
-                  <Outlet />
-                </ProtectedRoute>
-              }
-            >
-              <Route path="/" element={<Home />} />
-              <Route path="/lists" element={<Lists />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/friends" element={<Friends />} />
-              {/* Publicly Shareable Routes (No Auth Required) */}
-              <Route path="/u/:username" element={<PublicProfile />} />
-              <Route path="/lists/:id" element={<ListDetail />} />
+            {/* Main App Layout */}
+            <Route element={<Layout />}>
+              {/* Authenticated / Protected Routes */}
+              <Route
+                element={
+                  <ProtectedRoute>
+                    <Outlet />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="/" element={<Home />} />
+                <Route path="/lists" element={<Lists />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/friends" element={<Friends />} />
+                <Route path="/u/:username" element={<PublicProfile />} />
+                <Route path="/lists/:id" element={<ListDetail />} />
+              </Route>
             </Route>
-          </Route>
-        </Routes>
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
-    </AuthProvider>
+    </>
   );
 }
 
