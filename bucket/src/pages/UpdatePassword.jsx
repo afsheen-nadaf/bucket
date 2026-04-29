@@ -13,8 +13,6 @@ export default function UpdatePassword() {
   const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
 
-  // Supabase automatically processes the access_token in the URL hash.
-  // We can clean up the URL visually once the component mounts!
   useEffect(() => {
     if (window.location.hash.includes("access_token")) {
       window.history.replaceState(null, "", window.location.pathname);
@@ -24,6 +22,17 @@ export default function UpdatePassword() {
   const handleUpdate = async (e) => {
     e.preventDefault();
     setError(null);
+
+    // Custom validation messages replacing the ugly browser defaults!
+    if (!password) {
+      setError("please enter a new password");
+      return;
+    }
+
+    if (!confirmPassword) {
+      setError("please confirm your new password");
+      return;
+    }
 
     if (password !== confirmPassword) {
       setError("passwords do not match");
@@ -48,14 +57,13 @@ export default function UpdatePassword() {
     } else {
       setSuccess(true);
       setTimeout(() => {
-        navigate("/");
+        navigate("/login"); // Redirects to login now!
       }, 2500);
     }
   };
 
   return (
     <div className="relative min-h-screen flex flex-col justify-center items-center p-4 overflow-x-hidden lowercase">
-      {/* Reusing your gorgeous animated background */}
       <AuthBackground />
 
       <div
@@ -100,7 +108,7 @@ export default function UpdatePassword() {
               <h2 className="font-poppins font-bold text-ink text-lg">
                 password updated!
               </h2>
-              <p className="text-sm text-ink/60 mt-1">taking you home...</p>
+              <p className="text-sm text-ink/60 mt-1">taking you to login...</p>
             </div>
           </div>
         ) : (
@@ -113,9 +121,9 @@ export default function UpdatePassword() {
                 new password
               </label>
               <div className="relative">
+                {/* Removed 'required' attribute */}
                 <input
                   type={showPassword ? "text" : "password"}
-                  required
                   className="w-full px-4 py-3 rounded-[0.75rem] outline-none transition-all text-sm pr-12"
                   style={{
                     background: "rgba(255,255,255,0.75)",
@@ -150,9 +158,9 @@ export default function UpdatePassword() {
                 confirm password
               </label>
               <div className="relative">
+                {/* Removed 'required' attribute */}
                 <input
                   type={showPassword ? "text" : "password"}
-                  required
                   className="w-full px-4 py-3 rounded-[0.75rem] outline-none transition-all text-sm pr-12"
                   style={{
                     background: "rgba(255,255,255,0.75)",
@@ -188,4 +196,3 @@ export default function UpdatePassword() {
     </div>
   );
 }
-

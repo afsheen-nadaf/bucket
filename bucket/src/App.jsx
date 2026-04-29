@@ -30,10 +30,6 @@ function App() {
 
           {/* Main App Layout */}
           <Route element={<Layout />}>
-            {/* Publicly Shareable Routes (No Auth Required) */}
-            <Route path="/u/:username" element={<PublicProfile />} />
-            <Route path="/lists/:id" element={<ListDetail />} />
-
             {/* Authenticated / Protected Routes */}
             <Route
               element={
@@ -46,6 +42,9 @@ function App() {
               <Route path="/lists" element={<Lists />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/friends" element={<Friends />} />
+              {/* Publicly Shareable Routes (No Auth Required) */}
+              <Route path="/u/:username" element={<PublicProfile />} />
+              <Route path="/lists/:id" element={<ListDetail />} />
             </Route>
           </Route>
         </Routes>
