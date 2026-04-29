@@ -8,12 +8,13 @@ import {
   Plus,
   ArrowLeft,
   Trash2,
-  Edit2,
   CheckCircle2,
   Sparkles,
   Loader,
+  Heart,
 } from "lucide-react";
 import RatingModal from "../components/RatingModal";
+import AddToListModal from "../components/AddToListModal";
 
 const CATEGORY_META = {
   Movies: { color: "#E05A7A", emoji: "🎬", placeholder: "movie" },
@@ -65,6 +66,7 @@ export default function ListDetail() {
     is_public: false,
   });
   const [selectedItemForRating, setSelectedItemForRating] = useState(null);
+  const [selectedItemForSaving, setSelectedItemForSaving] = useState(null);
   const searchTimeoutRef = useRef(null);
 
   const isOwner = user && list && user.id === list.user_id;
@@ -160,7 +162,6 @@ export default function ListDetail() {
   };
 
   const addItem = async (item) => {
-    // Check if the item already exists to group it and prompt rating
     const existingInstances = items.filter((i) => i.api_id === item.api_id);
     const alreadyExists = existingInstances.length > 0;
 
@@ -173,43 +174,30 @@ export default function ListDetail() {
           title: item.title,
           cover_url: item.cover_url,
           creator: item.creator,
-          is_done: alreadyExists ? true : false, // Auto-mark done if relogging
+          is_done: false, // Don't auto-mark as done until they explicitly save the rating
         },
       ])
       .select();
 
     if (!error && data) {
       let updatedItems = [data[0], ...items];
+      setItems(updatedItems);
+      setSearchResults([]);
+      setQuery("");
 
       if (alreadyExists) {
-        // If they log it again, mark all previous instances as done too
-        const idsToUpdate = existingInstances.map((i) => i.id);
-        await supabase
-          .from("list_items")
-          .update({ is_done: true })
-          .in("id", idsToUpdate);
-
-        updatedItems = updatedItems.map((i) =>
-          i.api_id === item.api_id ? { ...i, is_done: true } : i,
-        );
-
-        // Open rating modal immediately to let them review it again
+        // Open rating modal immediately to let them review it, but it's not marked 'done' yet
         const groupedRepresentation = {
           ...data[0],
-          is_done: true,
+          is_done: false,
           instances: existingInstances.concat(data[0]),
         };
         setSelectedItemForRating(groupedRepresentation);
       }
-
-      setItems(updatedItems);
-      setSearchResults([]);
-      setQuery("");
     }
   };
 
   const removeItem = async (apiId) => {
-    // Remove all grouped instances of this specific item
     const idsToDelete = items
       .filter((i) => i.api_id === apiId)
       .map((i) => i.id);
@@ -221,24 +209,44 @@ export default function ListDetail() {
   };
 
   const toggleItemDone = async (groupedItem) => {
-    const newDone = !groupedItem.is_done;
-    const idsToUpdate = groupedItem.instances.map((i) => i.id);
+    if (groupedItem.is_done) {
+      // If it's already done, unmark it immediately
+      const idsToUpdate = groupedItem.instances.map((i) => i.id);
+      const { error } = await supabase
+        .from("list_items")
+        .update({ is_done: false })
+        .in("id", idsToUpdate);
 
+      if (!error) {
+        setItems(
+          items.map((i) =>
+            idsToUpdate.includes(i.id) ? { ...i, is_done: false } : i,
+          ),
+        );
+      }
+    } else {
+      // If it's not done, just open the rating modal.
+      // We will mark it as done ONLY when they click "Save Rating" in the modal.
+      setSelectedItemForRating(groupedItem);
+    }
+  };
+
+  // Callback to handle when the user explicitly saves from the RatingModal
+  const handleRatingSaved = async (groupedItem) => {
+    const idsToUpdate = groupedItem.instances.map((i) => i.id);
     const { error } = await supabase
       .from("list_items")
-      .update({ is_done: newDone })
+      .update({ is_done: true })
       .in("id", idsToUpdate);
 
     if (!error) {
       setItems(
         items.map((i) =>
-          idsToUpdate.includes(i.id) ? { ...i, is_done: newDone } : i,
+          idsToUpdate.includes(i.id) ? { ...i, is_done: true } : i,
         ),
       );
-      if (newDone) {
-        setSelectedItemForRating(groupedItem);
-      }
     }
+    setSelectedItemForRating(null);
   };
 
   if (!list)
@@ -258,7 +266,6 @@ export default function ListDetail() {
       </div>
     );
 
-  // Check if list is private and user is not the owner
   if (!list.is_public && user && user.id !== list.user_id) {
     return (
       <div className="relative lowercase min-h-screen pb-24 overflow-x-hidden flex items-center justify-center">
@@ -280,13 +287,13 @@ export default function ListDetail() {
                 className="text-3xl md:text-4xl font-poppins font-extrabold"
                 style={{ color: "#1a1a2e" }}
               >
-                This list is private
+                this list is private
               </h1>
               <p
                 className="text-sm md:text-base"
                 style={{ color: "rgba(26,26,46,0.6)" }}
               >
-                You don't have permission to view this list.
+                you don't have permission to view this list.
               </p>
             </div>
             <Link
@@ -312,7 +319,6 @@ export default function ListDetail() {
   };
   const verb = getVerb(list.category);
 
-  // --- VISUAL GROUPING STRATEGY ---
   const groupedItemsMap = new Map();
   items.forEach((item) => {
     if (groupedItemsMap.has(item.api_id)) {
@@ -648,7 +654,7 @@ export default function ListDetail() {
                 {searchResults.map((res) => (
                   <div
                     key={res.api_id}
-                    className="flex items-center justify-between p-3 rounded-lg transition-all"
+                    className="flex items-center justify-between p-3 rounded-lg transition-all gap-2"
                     style={{ background: "rgba(255,255,255,0.6)" }}
                     onMouseEnter={(e) =>
                       (e.currentTarget.style.background =
@@ -659,22 +665,22 @@ export default function ListDetail() {
                         "rgba(255,255,255,0.6)")
                     }
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
                       {res.cover_url ? (
                         <img
                           src={res.cover_url}
                           alt={res.title}
-                          className="w-10 h-10 object-cover rounded-lg shadow-sm"
+                          className="w-10 h-10 object-cover rounded-lg shadow-sm shrink-0"
                         />
                       ) : (
                         <div
-                          className="w-10 h-10 rounded-lg flex items-center justify-center text-lg flex-shrink-0"
+                          className="w-10 h-10 rounded-lg flex items-center justify-center text-lg shrink-0"
                           style={{ background: `${meta.color}18` }}
                         >
                           {meta.emoji}
                         </div>
                       )}
-                      <div className="min-w-0">
+                      <div className="flex-1 min-w-0">
                         <p
                           className="font-bold text-sm truncate"
                           style={{ color: "#1a1a2e" }}
@@ -691,7 +697,7 @@ export default function ListDetail() {
                     </div>
                     <button
                       onClick={() => addItem(res)}
-                      className="p-2 rounded-lg font-bold text-white flex items-center gap-1 text-xs transition-all hover:scale-105 active:scale-95 shadow-sm flex-shrink-0"
+                      className="p-2 rounded-lg font-bold text-white flex items-center justify-center shrink-0 transition-all hover:scale-105 active:scale-95 shadow-sm"
                       style={{
                         background: meta.color,
                         boxShadow: `0 4px 12px ${meta.color}40`,
@@ -732,8 +738,10 @@ export default function ListDetail() {
             {groupedItems.map((item, i) => (
               <div
                 key={item.api_id}
-                onClick={() => setSelectedItemForRating(item)}
-                className="rounded-xl overflow-hidden group relative cursor-pointer transition-all hover:-translate-y-1"
+                onClick={() => {
+                  if (isOwner) setSelectedItemForRating(item);
+                }}
+                className={`rounded-xl overflow-hidden group relative transition-all hover:-translate-y-1 ${isOwner ? "cursor-pointer" : "cursor-default"}`}
                 style={{
                   ...glassCard,
                   animationDelay: `${i * 40}ms`,
@@ -743,6 +751,7 @@ export default function ListDetail() {
                     : "0 8px 28px rgba(80,100,200,0.10), 0 2px 8px rgba(0,0,0,0.04)",
                 }}
               >
+                {/* Owner controls: Mark done & Delete */}
                 {isOwner && (
                   <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                     <button
@@ -776,6 +785,32 @@ export default function ListDetail() {
                       }}
                     >
                       <Trash2 size={14} />
+                    </button>
+                  </div>
+                )}
+
+                {/* Non-owner controls: Save to list */}
+                {!isOwner && user && (
+                  <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedItemForSaving({
+                          item_name: item.title,
+                          category: list.category,
+                          external_id: item.api_id,
+                          cover_url: item.cover_url,
+                          creator: item.creator,
+                        });
+                      }}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg shadow-md transition-all hover:scale-110"
+                      style={{
+                        background: "rgba(255,235,240,0.95)",
+                        color: "#e05a7a",
+                      }}
+                    >
+                      <Heart size={12} strokeWidth={3} />
+                      <span className="text-[10px] font-bold">save</span>
                     </button>
                   </div>
                 )}
@@ -876,6 +911,15 @@ export default function ListDetail() {
           item={selectedItemForRating}
           category={list.category}
           onClose={() => setSelectedItemForRating(null)}
+          onSaveSuccess={() => handleRatingSaved(selectedItemForRating)}
+        />
+      )}
+
+      {selectedItemForSaving && (
+        <AddToListModal
+          item={selectedItemForSaving}
+          onClose={() => setSelectedItemForSaving(null)}
+          onSuccess={() => setSelectedItemForSaving(null)}
         />
       )}
 

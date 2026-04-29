@@ -15,6 +15,7 @@ import {
   Star,
   UserPlus,
   UserCheck,
+  UserMinus,
   List,
   PlusCircle,
   Sparkles,
@@ -168,6 +169,23 @@ function GooeySearch({ value, onValueChange, onSearch }) {
   );
 }
 
+// Format the dynamic text verb depending on the category
+function getActionText(category) {
+  switch (category?.toLowerCase()) {
+    case "movies":
+    case "shows":
+      return "watched and rated";
+    case "books":
+      return "read and rated";
+    case "music":
+      return "listened to and rated";
+    case "places":
+      return "visited";
+    default:
+      return "rated";
+  }
+}
+
 export default function Profile() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -198,7 +216,10 @@ export default function Profile() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
+  const [sentRequests, setSentRequests] = useState([]);
   const [friendList, setFriendList] = useState([]);
+  const [toastMessage, setToastMessage] = useState(null);
+  const [friendToRemove, setFriendToRemove] = useState(null);
 
   const deleteConfirmRef = useRef(null);
   const avatarInputRef = useRef(null);
@@ -275,6 +296,7 @@ export default function Profile() {
   };
 
   const fetchFriendsData = async () => {
+    // Received requests
     const { data: requests } = await supabase
       .from("friends")
       .select("id, requester_id")
@@ -299,6 +321,33 @@ export default function Profile() {
       setPendingRequests([]);
     }
 
+    // Sent requests
+    const { data: sent } = await supabase
+      .from("friends")
+      .select("id, receiver_id")
+      .eq("requester_id", user.id)
+      .eq("status", "pending");
+
+    if (sent?.length > 0) {
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("*")
+        .in(
+          "id",
+          sent.map((r) => r.receiver_id),
+        );
+
+      setSentRequests(
+        sent.map((req) => ({
+          ...req,
+          profile: profiles.find((p) => p.id === req.receiver_id),
+        })),
+      );
+    } else {
+      setSentRequests([]);
+    }
+
+    // Accepted friends
     const { data: accepted } = await supabase
       .from("friends")
       .select("*")
@@ -408,26 +457,55 @@ export default function Profile() {
     };
   }, [searchQuery, handleSearch]);
 
+  const showToast = (message) => {
+    setToastMessage(message);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
   const sendFriendRequest = async (receiverId) => {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("friends")
       .insert([
         { requester_id: user.id, receiver_id: receiverId, status: "pending" },
-      ]);
-    if (!error) {
-      setSearchResults([]);
-      setSearchQuery("");
+      ])
+      .select()
+      .single();
+
+    if (!error && data) {
+      // Refresh to grab the profile data alongside the new ID
+      fetchFriendsData();
+      showToast("Friend request sent!");
     }
   };
 
   const acceptRequest = async (id) => {
     await supabase.from("friends").update({ status: "accepted" }).eq("id", id);
     fetchFriendsData();
+    showToast("Friend request accepted!");
   };
 
   const declineRequest = async (id) => {
     await supabase.from("friends").delete().eq("id", id);
     fetchFriendsData();
+  };
+
+  const cancelRequest = async (id) => {
+    await supabase.from("friends").delete().eq("id", id);
+    fetchFriendsData();
+    showToast("Request cancelled");
+  };
+
+  const executeRemoveFriend = async (friendId) => {
+    await supabase
+      .from("friends")
+      .delete()
+      .or(
+        `and(requester_id.eq.${user.id},receiver_id.eq.${friendId}),and(requester_id.eq.${friendId},receiver_id.eq.${user.id})`,
+      );
+
+    setFriendToRemove(null);
+    fetchFriendsData();
+    showToast("Friend removed");
   };
 
   const handleAvatarUpload = async (e) => {
@@ -447,6 +525,19 @@ export default function Profile() {
         .update({ avatar_url: url })
         .eq("id", user.id);
       setProfile((prev) => ({ ...prev, avatar_url: url }));
+    }
+    setAvatarUploading(false);
+  };
+
+  const handleRemoveAvatar = async () => {
+    setAvatarUploading(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ avatar_url: null })
+      .eq("id", user.id);
+
+    if (!error) {
+      setProfile((prev) => ({ ...prev, avatar_url: null }));
     }
     setAvatarUploading(false);
   };
@@ -496,6 +587,13 @@ export default function Profile() {
 
   return (
     <div className="max-w-4xl mx-auto lowercase relative z-10 pb-12 mt-12 px-4">
+      {/* Toast Notification for info messages */}
+      {toastMessage && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-ink text-white px-5 py-2.5 rounded-full shadow-xl z-[9999] text-sm font-semibold animate-fade-in">
+          {toastMessage}
+        </div>
+      )}
+
       {/* ── EDIT PROFILE MODAL ── */}
       {isEditingProfile && (
         <div
@@ -559,6 +657,25 @@ export default function Profile() {
                   </div>
                 )}
               </div>
+
+              {/* Photo Actions */}
+              <div className="flex items-center gap-2 mt-1">
+                <button
+                  onClick={() => avatarInputRef.current?.click()}
+                  className="text-[10px] font-bold text-cornflower bg-cornflower/10 px-3 py-1.5 rounded-full hover:bg-cornflower/20 transition-colors"
+                >
+                  change
+                </button>
+                {profile?.avatar_url && (
+                  <button
+                    onClick={handleRemoveAvatar}
+                    className="text-[10px] font-bold text-red-500 bg-red-500/10 px-3 py-1.5 rounded-full hover:bg-red-500/20 transition-colors"
+                  >
+                    remove
+                  </button>
+                )}
+              </div>
+
               <input
                 ref={avatarInputRef}
                 type="file"
@@ -566,7 +683,6 @@ export default function Profile() {
                 className="hidden"
                 onChange={handleAvatarUpload}
               />
-              <p className="text-[11px] text-ink/40">tap to change photo</p>
             </div>
 
             <div className="flex flex-col gap-4">
@@ -1012,25 +1128,49 @@ export default function Profile() {
               </div>
               {searchResults.length > 0 && (
                 <div className="flex flex-col gap-2">
-                  {searchResults.map((p) => (
-                    <div
-                      key={p.id}
-                      className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-white/50 border border-white/65"
-                    >
-                      <Link
-                        to={`/u/${p.username}`}
-                        className="font-poppins font-semibold text-sm text-ink hover:text-cornflower transition-colors"
+                  {searchResults.map((p) => {
+                    const isFriend = friendList.some((f) => f.id === p.id);
+                    const isSent = sentRequests.some(
+                      (req) => req.profile?.id === p.id,
+                    );
+                    const isReceived = pendingRequests.some(
+                      (req) => req.profile?.id === p.id,
+                    );
+
+                    return (
+                      <div
+                        key={p.id}
+                        className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-white/50 border border-white/65"
                       >
-                        @{p.username}
-                      </Link>
-                      <button
-                        onClick={() => sendFriendRequest(p.id)}
-                        className="flex items-center gap-1 text-[11px] bg-cornflower text-white font-poppins font-semibold px-3 py-1.5 rounded-lg hover:scale-105 transition-transform"
-                      >
-                        <UserPlus size={12} /> add
-                      </button>
-                    </div>
-                  ))}
+                        <Link
+                          to={`/u/${p.username}`}
+                          className="font-poppins font-semibold text-sm text-ink hover:text-cornflower transition-colors"
+                        >
+                          @{p.username}
+                        </Link>
+                        {isFriend ? (
+                          <span className="text-[11px] font-bold text-ink/40 px-3 py-1.5">
+                            friends
+                          </span>
+                        ) : isSent ? (
+                          <span className="text-[11px] font-bold text-cornflower px-3 py-1.5 bg-cornflower/10 rounded-lg">
+                            request sent
+                          </span>
+                        ) : isReceived ? (
+                          <span className="text-[11px] font-bold text-ink/40 px-3 py-1.5">
+                            check requests
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => sendFriendRequest(p.id)}
+                            className="flex items-center gap-1 text-[11px] bg-cornflower text-white font-poppins font-semibold px-3 py-1.5 rounded-lg hover:scale-105 transition-transform"
+                          >
+                            <UserPlus size={12} /> add
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
               {searchQuery && searchResults.length === 0 && (
@@ -1077,6 +1217,36 @@ export default function Profile() {
                 </div>
               </div>
             )}
+
+            {/* Sent Requests Box */}
+            {sentRequests.length > 0 && (
+              <div className="p-5 rounded-[1.5rem]" style={glass}>
+                <p className="font-poppins text-[10px] font-bold tracking-widest text-ink/40 uppercase mb-3 flex items-center gap-2">
+                  sent requests
+                </p>
+                <div className="flex flex-col gap-2">
+                  {sentRequests.map((req) => (
+                    <div
+                      key={req.id}
+                      className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-white/50 border border-white/65"
+                    >
+                      <Link
+                        to={`/u/${req.profile?.username}`}
+                        className="font-poppins font-semibold text-sm text-ink hover:text-cornflower transition-colors"
+                      >
+                        @{req.profile?.username}
+                      </Link>
+                      <button
+                        onClick={() => cancelRequest(req.id)}
+                        className="text-[10px] font-bold text-red-500/70 hover:text-red-500 bg-red-500/10 px-2.5 py-1.5 rounded-lg transition-colors"
+                      >
+                        cancel
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="rounded-[1.5rem] h-fit overflow-hidden" style={glass}>
@@ -1095,18 +1265,59 @@ export default function Profile() {
             ) : (
               <div className="flex flex-col divide-y divide-white/50">
                 {friendList.map((friend) => (
-                  <Link
+                  <div
                     key={friend.id}
-                    to={`/u/${friend.username}`}
                     className="flex items-center justify-between px-5 py-3.5 hover:bg-white/30 transition-colors group"
                   >
-                    <span className="font-poppins font-semibold text-sm text-ink group-hover:text-cornflower transition-colors">
+                    <Link
+                      to={`/u/${friend.username}`}
+                      className="font-poppins font-semibold text-sm text-ink group-hover:text-cornflower transition-colors flex-1"
+                    >
                       @{friend.username}
-                    </span>
-                    <span className="font-poppins text-xs text-ink/25 group-hover:translate-x-0.5 group-hover:text-cornflower/50 transition-all">
-                      →
-                    </span>
-                  </Link>
+                    </Link>
+                    <div className="flex items-center gap-2">
+                      <Link
+                        to={`/u/${friend.username}`}
+                        className="font-poppins text-xs text-ink/25 group-hover:text-cornflower/50 transition-all md:hidden group-hover:md:block"
+                      >
+                        →
+                      </Link>
+                      {/* Inline Remove Confirmation */}
+                      {friendToRemove?.id === friend.id ? (
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold bg-red-50/80 text-ink/70">
+                          sure?
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              executeRemoveFriend(friend.id);
+                            }}
+                            className="font-black text-red-600 hover:underline"
+                          >
+                            yes
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setFriendToRemove(null);
+                            }}
+                            className="hover:underline text-ink"
+                          >
+                            no
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setFriendToRemove(friend);
+                          }}
+                          className="text-[10px] font-bold text-red-500/70 hover:text-red-500 px-2 py-1.5 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                        >
+                          remove
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
@@ -1156,7 +1367,7 @@ function FeedRow({ event, timeAgo }) {
         )}
       </span>
     ) : (
-      "rated"
+      getActionText(data?.category)
     );
 
   const titleContent =

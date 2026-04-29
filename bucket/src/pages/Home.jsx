@@ -2,7 +2,17 @@ import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { Link } from "react-router-dom";
-import { Star, List as ListIcon, UserPlus, Clock } from "lucide-react";
+import {
+  Star,
+  List as ListIcon,
+  UserPlus,
+  Clock,
+  Heart,
+  MessageCircle,
+  Send,
+  X,
+  Loader,
+} from "lucide-react";
 import RecsStrip from "../components/RecsStrip";
 
 // Avatar gradient cycles
@@ -43,6 +53,23 @@ function timeAgo(dateString) {
   const days = Math.floor(hours / 24);
   if (days === 1) return "yesterday";
   return `${days}d ago`;
+}
+
+// Format the dynamic text verb depending on the category
+function getActionText(category) {
+  switch (category?.toLowerCase()) {
+    case "movies":
+    case "shows":
+      return "watched and rated";
+    case "books":
+      return "read and rated";
+    case "music":
+      return "listened to and rated";
+    case "places":
+      return "visited";
+    default:
+      return "rated";
+  }
 }
 
 const categoryBadge = {
@@ -221,83 +248,315 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      <style>{`
+        @keyframes slideUp {
+          from { transform: translateY(100%); }
+          to { transform: translateY(0); }
+        }
+      `}</style>
     </div>
   );
 }
 
 /* ── Feed card ── */
 function FeedCard({ item, badgeClass }) {
+  const { user } = useAuth();
   const username = item.profile?.username ?? "unknown";
   const userId = item.profile?.id ?? "";
   const gradient = getAvatarGradient(userId);
   const initials = getInitials(username);
 
+  // Social state
+  const targetId = item.api_id || item.id?.toString();
+  const [likesCount, setLikesCount] = useState(0);
+  const [hasLiked, setHasLiked] = useState(false);
+  const [comments, setComments] = useState([]);
+  const [showComments, setShowComments] = useState(false);
+  const [newComment, setNewComment] = useState("");
+  const [isLiking, setIsLiking] = useState(false);
+  const [isCommenting, setIsCommenting] = useState(false);
+
+  useEffect(() => {
+    const fetchSocial = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (!token || !targetId) return;
+
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/recommendations/${targetId}/social`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setLikesCount(data.likeCount);
+          setHasLiked(data.hasLiked);
+          setComments(data.comments);
+        }
+      } catch (err) {
+        console.error("Failed to fetch social data", err);
+      }
+    };
+    fetchSocial();
+  }, [targetId]);
+
+  const toggleLike = async () => {
+    if (isLiking) return;
+    setIsLiking(true);
+
+    // Optimistic update
+    setHasLiked(!hasLiked);
+    setLikesCount((prev) => (hasLiked ? prev - 1 : prev + 1));
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/recommendations/${targetId}/like`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      if (!response.ok) throw new Error("Like failed");
+    } catch (err) {
+      setHasLiked(hasLiked);
+      setLikesCount((prev) => (hasLiked ? prev + 1 : prev - 1));
+    }
+    setIsLiking(false);
+  };
+
+  const postComment = async (e) => {
+    e.preventDefault();
+    if (!newComment.trim() || isCommenting) return;
+
+    setIsCommenting(true);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/recommendations/${targetId}/comments`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ text: newComment }),
+        },
+      );
+      if (response.ok) {
+        const { comment } = await response.json();
+        setComments([...comments, comment]);
+        setNewComment("");
+      }
+    } catch (err) {
+      console.error("Failed to post comment", err);
+    }
+    setIsCommenting(false);
+  };
+
   return (
-    <div
-      className="rounded-[1.25rem] p-4 border border-white/70 transition-transform duration-200 hover:-translate-y-0.5"
-      style={{
-        background: "rgba(255,255,255,0.45)",
-        backdropFilter: "blur(16px)",
-      }}
-    >
-      {/* Card header */}
-      <div className="flex items-center gap-2 mb-3 flex-wrap">
-        {/* Avatar */}
-        <div
-          className={`w-7 h-7 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center shrink-0`}
-        >
-          <span className="text-white text-[10px] font-bold font-poppins">
-            {initials}
-          </span>
-        </div>
-
-        {/* Username + action */}
-        <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5 text-sm flex-1 min-w-0">
-          <Link
-            to={`/u/${username}`}
-            className="font-semibold text-cornflower hover:underline underline-offset-2 decoration-cornflower/40 shrink-0"
+    <>
+      <div
+        className="rounded-[1.25rem] p-4 border border-white/70 transition-transform duration-200 hover:-translate-y-0.5 relative"
+        style={{
+          background: "rgba(255,255,255,0.45)",
+          backdropFilter: "blur(16px)",
+        }}
+      >
+        {/* Card header */}
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
+          {/* Avatar */}
+          <div
+            className={`w-7 h-7 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center shrink-0`}
           >
-            @{username}
-          </Link>
-          <span className="text-ink/50 font-poppins text-xs">
-            {item.feedType === "rating" ? (
-              <>
-                rated{" "}
-                <span className="text-ink/80 font-semibold">
-                  {item.item_name || item.title || "an item"}
-                </span>
-                {item.list_title && (
-                  <span className="text-ink/40"> from "{item.list_title}"</span>
-                )}
-              </>
-            ) : (
-              <>
-                created a list{" "}
-                <span className="text-ink/80 font-semibold">
-                  "{item.title}"
-                </span>
-              </>
-            )}
+            <span className="text-white text-[10px] font-bold font-poppins">
+              {initials}
+            </span>
+          </div>
+
+          {/* Username + action */}
+          <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5 text-sm flex-1 min-w-0">
+            <Link
+              to={`/u/${username}`}
+              className="font-semibold text-cornflower hover:underline underline-offset-2 decoration-cornflower/40 shrink-0"
+            >
+              @{username}
+            </Link>
+            <span className="text-ink/50 font-poppins text-xs">
+              {item.feedType === "rating" ? (
+                <>
+                  {getActionText(item.category)}{" "}
+                  <span className="text-ink/80 font-semibold">
+                    {item.item_name || item.title || "an item"}
+                  </span>
+                  {item.list_title && (
+                    <span className="text-ink/40">
+                      {" "}
+                      from "{item.list_title}"
+                    </span>
+                  )}
+                </>
+              ) : (
+                <>
+                  created a list{" "}
+                  <span className="text-ink/80 font-semibold">
+                    "{item.title}"
+                  </span>
+                </>
+              )}
+            </span>
+          </div>
+
+          {/* Timestamp pill */}
+          <span
+            className="shrink-0 flex items-center gap-1 text-[10px] text-ink/40 px-2.5 py-1 rounded-full border border-white/60 font-poppins"
+            style={{ background: "rgba(255,255,255,0.5)" }}
+          >
+            <Clock size={9} />
+            {timeAgo(item.created_at)}
           </span>
         </div>
 
-        {/* Timestamp pill */}
-        <span
-          className="shrink-0 flex items-center gap-1 text-[10px] text-ink/40 px-2.5 py-1 rounded-full border border-white/60 font-poppins"
-          style={{ background: "rgba(255,255,255,0.5)" }}
-        >
-          <Clock size={9} />
-          {timeAgo(item.created_at)}
-        </span>
+        {/* Card body */}
+        {item.feedType === "rating" ? (
+          <RatingInner item={item} badgeClass={badgeClass} />
+        ) : (
+          <ListInner item={item} badgeClass={badgeClass} />
+        )}
+
+        {/* Social Action Bar */}
+        <div className="flex items-center gap-5 pt-3 px-1 mt-1 font-poppins">
+          <button
+            onClick={toggleLike}
+            className="flex items-center gap-1.5 text-xs font-bold transition-colors group"
+            style={{ color: hasLiked ? "#ef4444" : "#64748b" }}
+          >
+            <Heart
+              size={16}
+              fill={hasLiked ? "#ef4444" : "transparent"}
+              className="group-hover:scale-110 transition-transform active:scale-95"
+            />
+            <span>
+              {likesCount === 0
+                ? "like"
+                : `${likesCount} ${likesCount === 1 ? "like" : "likes"}`}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setShowComments(true)}
+            className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-700 transition-colors group"
+          >
+            <MessageCircle
+              size={16}
+              className="group-hover:scale-110 transition-transform active:scale-95"
+            />
+            <span>
+              {comments.length === 0
+                ? "comment"
+                : `${comments.length} ${comments.length === 1 ? "comment" : "comments"}`}
+            </span>
+          </button>
+        </div>
       </div>
 
-      {/* Card body */}
-      {item.feedType === "rating" ? (
-        <RatingInner item={item} badgeClass={badgeClass} />
-      ) : (
-        <ListInner item={item} badgeClass={badgeClass} />
+      {/* Comments Slide-up Modal */}
+      {showComments && (
+        <div
+          className="fixed inset-0 z-[100] flex justify-center items-end sm:items-center p-0 sm:p-4 bg-black/20 backdrop-blur-sm"
+          onClick={() => setShowComments(false)}
+        >
+          <div
+            className="w-full max-w-md bg-white/90 backdrop-blur-2xl rounded-t-[2rem] sm:rounded-[2rem] border border-white/50 shadow-2xl flex flex-col h-[75vh] sm:h-[60vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+            style={{ animation: "slideUp 0.3s ease-out forwards" }}
+          >
+            <div className="p-5 border-b border-slate-200/50 flex justify-between items-center bg-white/50 shrink-0">
+              <h3 className="font-poppins font-extrabold text-ink">comments</h3>
+              <button
+                onClick={() => setShowComments(false)}
+                className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
+              {comments.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center text-slate-400 gap-2">
+                  <MessageCircle size={32} opacity={0.5} />
+                  <p className="text-sm font-medium font-poppins">
+                    no comments yet. be the first!
+                  </p>
+                </div>
+              ) : (
+                comments.map((c) => (
+                  <div key={c.id} className="flex gap-3">
+                    <div className="w-8 h-8 rounded-full bg-slate-200 shrink-0 flex items-center justify-center text-xs font-bold text-slate-500 overflow-hidden font-poppins">
+                      {c.profiles?.avatar_url ? (
+                        <img
+                          src={c.profiles.avatar_url}
+                          alt=""
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        c.profiles?.username?.charAt(0).toUpperCase()
+                      )}
+                    </div>
+                    <div className="bg-slate-100/80 rounded-2xl rounded-tl-none px-4 py-2.5 flex-1 font-poppins">
+                      <p className="text-xs font-extrabold text-slate-700 mb-0.5">
+                        @{c.profiles?.username}
+                      </p>
+                      <p className="text-sm text-slate-800">{c.text}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <form
+              onSubmit={postComment}
+              className="p-4 border-t border-slate-200/50 bg-white/50 flex gap-2 shrink-0 pb-safe"
+            >
+              <input
+                type="text"
+                placeholder="add a comment..."
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                className="flex-1 bg-white border border-slate-200 rounded-full px-4 py-3 text-sm outline-none font-poppins focus:border-cornflower transition-colors shadow-inner"
+              />
+              <button
+                type="submit"
+                disabled={!newComment.trim() || isCommenting}
+                className="w-12 h-12 rounded-full bg-cornflower text-white flex items-center justify-center disabled:opacity-50 hover:opacity-90 transition-all shadow-md shrink-0 active:scale-95"
+              >
+                {isCommenting ? (
+                  <Loader size={18} className="animate-spin" />
+                ) : (
+                  <Send size={18} className="ml-0.5" />
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
       )}
-    </div>
+    </>
   );
 }
 

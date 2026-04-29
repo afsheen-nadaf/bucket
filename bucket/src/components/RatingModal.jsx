@@ -3,7 +3,12 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { X, Star } from "lucide-react";
 
-export default function RatingModal({ item, category, onClose }) {
+export default function RatingModal({
+  item,
+  category,
+  onClose,
+  onSaveSuccess,
+}) {
   const { user } = useAuth();
   const [rating, setRating] = useState(0);
   const [review, setReview] = useState("");
@@ -98,6 +103,11 @@ export default function RatingModal({ item, category, onClose }) {
     }
 
     setIsSaving(false);
+
+    // Explicitly confirm the save to the parent component before closing
+    if (onSaveSuccess) {
+      onSaveSuccess();
+    }
     onClose();
   };
 

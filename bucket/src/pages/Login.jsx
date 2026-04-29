@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { Sparkles, Eye, EyeOff } from "lucide-react";
+import { supabase } from "../lib/supabase";
 import AuthBackground from "../components/AuthBackground";
 
 export default function Login() {
@@ -10,6 +11,9 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
+  const [resetSuccess, setResetSuccess] = useState(false);
   const { signIn } = useAuth();
   const navigate = useNavigate();
 
@@ -31,6 +35,32 @@ export default function Login() {
       }
     } else {
       navigate("/");
+    }
+  };
+
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+
+    const { error } = await supabase.auth.resetPasswordForEmail(
+      forgotPasswordEmail,
+      {
+        redirectTo: `${window.location.origin}/update-password`,
+      },
+    );
+
+    setIsLoading(false);
+
+    if (error) {
+      setError(error.message);
+    } else {
+      setResetSuccess(true);
+      setForgotPasswordEmail("");
+      setTimeout(() => {
+        setResetSuccess(false);
+        setShowForgotPassword(false);
+      }, 3000);
     }
   };
 
@@ -152,6 +182,86 @@ export default function Login() {
             {isLoading ? "signing in..." : "sign in"}
           </button>
         </form>
+
+        {/* Forgot Password Section */}
+        {!showForgotPassword ? (
+          <button
+            type="button"
+            onClick={() => setShowForgotPassword(true)}
+            className="text-xs font-medium hover:underline transition-all"
+            style={{ color: "#6495ed" }}
+          >
+            forgot password?
+          </button>
+        ) : (
+          <form
+            onSubmit={handleForgotPassword}
+            className="flex flex-col gap-3 pt-2 border-t border-white/20"
+          >
+            <div className="flex flex-col gap-2">
+              <label
+                className="text-xs font-bold uppercase tracking-wide"
+                style={{ color: "rgba(26,26,46,0.6)" }}
+              >
+                Email
+              </label>
+              <input
+                type="email"
+                required
+                className="px-4 py-3 rounded-[0.75rem] outline-none transition-all text-sm"
+                style={{
+                  background: "rgba(255,255,255,0.75)",
+                  border: "1.5px solid rgba(255,255,255,0.8)",
+                  color: "#1a1a2e",
+                }}
+                onFocus={(e) =>
+                  (e.target.style.borderColor = "rgba(100,149,237,0.5)")
+                }
+                onBlur={(e) =>
+                  (e.target.style.borderColor = "rgba(255,255,255,0.8)")
+                }
+                value={forgotPasswordEmail}
+                onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                placeholder="you@example.com"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="flex-1 py-[0.75rem] rounded-[0.75rem] font-bold text-white text-sm transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60"
+                style={{
+                  background:
+                    "linear-gradient(135deg, #6495ed 0%, #8b6cf7 100%)",
+                }}
+              >
+                {isLoading ? "sending..." : "send reset link"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowForgotPassword(false)}
+                className="flex-1 py-[0.75rem] rounded-[0.75rem] font-bold text-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
+                style={{
+                  background: "rgba(255,255,255,0.3)",
+                  color: "rgba(26,26,46,0.7)",
+                }}
+              >
+                cancel
+              </button>
+            </div>
+            {resetSuccess && (
+              <div
+                className="px-3 py-2 rounded-lg text-xs font-medium text-center"
+                style={{
+                  color: "#059669",
+                  background: "rgba(5,150,105,0.1)",
+                }}
+              >
+                check your email for a reset link
+              </div>
+            )}
+          </form>
+        )}
 
         {/* Sign up link */}
         <p

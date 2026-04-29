@@ -8,7 +8,6 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import Folder from "../components/Folder";
 
-// Cleaned up emojis and set labels to caps
 const CATEGORY_FOLDERS = [
   { id: "Movies", label: "MOVIES", color: "#F0607E" },
   { id: "Books", label: "BOOKS", color: "#F5A623" },
@@ -54,7 +53,6 @@ function CarouselItem({
   );
 
   return (
-    // Reduced height to cut negative space
     <div
       style={{ perspective: 1200, width: 320, height: 280 }}
       className="shrink-0 flex items-end justify-center"
@@ -187,7 +185,6 @@ export default function Lists() {
       ) : (
         <div
           ref={wrapperRef}
-          // Decreased padding-bottom and adjusted margin-top to bring elements up
           className="flex-1 flex flex-col items-center justify-center pb-4 relative z-10 w-full overflow-hidden transition-opacity duration-300"
           style={{
             opacity: activeCategory ? 0 : containerWidth > 0 ? 1 : 0,
@@ -195,8 +192,20 @@ export default function Lists() {
             marginTop: "-4vh",
           }}
         >
-          {/* Reduced height of container to tightly fit scaled folders */}
-          <div className="w-full h-[280px] flex items-center">
+          <div className="w-full h-[280px] flex items-center relative">
+            {/* NEW: Left Arrow */}
+            <button
+              onClick={() => setFocusedIdx(Math.max(0, focusedIdx - 1))}
+              className={`absolute left-2 md:left-8 z-30 p-2 md:p-3 rounded-full bg-white/40 hover:bg-white/70 backdrop-blur-md transition-all duration-300 border border-white/50 shadow-sm ${
+                focusedIdx === 0
+                  ? "opacity-0 pointer-events-none"
+                  : "opacity-100"
+              }`}
+              style={{ color: focusedCat.color }}
+            >
+              <ChevronLeft size={28} strokeWidth={2.5} />
+            </button>
+
             <motion.div
               drag="x"
               dragConstraints={{
@@ -239,7 +248,13 @@ export default function Lists() {
                         ...catLists.slice(0, 2).map((l) => (
                           <div
                             key={l.id}
-                            className="w-full h-full flex flex-col justify-center p-3"
+                            onClick={(e) => {
+                              if (!isFocused) return;
+                              e.stopPropagation();
+                              navigate(`/lists/${l.id}`);
+                            }}
+                            onPointerDownCapture={(e) => e.stopPropagation()}
+                            className="w-full h-full flex flex-col justify-center p-3 hover:bg-slate-50 transition-colors"
                             style={{ background: "rgba(255,255,255,1)" }}
                           >
                             <span
@@ -272,7 +287,15 @@ export default function Lists() {
                           ? [
                               <div
                                 key="more"
-                                className="w-full h-full flex flex-col items-center justify-center"
+                                onClick={(e) => {
+                                  if (!isFocused) return;
+                                  e.stopPropagation();
+                                  setActiveCategory(cat.id);
+                                }}
+                                onPointerDownCapture={(e) =>
+                                  e.stopPropagation()
+                                }
+                                className="w-full h-full flex flex-col items-center justify-center hover:bg-slate-50 transition-colors"
                                 style={{ background: "rgba(255,255,255,1)" }}
                               >
                                 <span
@@ -283,7 +306,6 @@ export default function Lists() {
                                     letterSpacing: "0.05em",
                                   }}
                                 >
-                                  {/* Restyled "+n MORE" with smaller plus */}
                                   <span style={{ fontSize: 10 }}>+</span>
                                   {catLists.length - 2} MORE
                                 </span>
@@ -320,6 +342,23 @@ export default function Lists() {
                 );
               })}
             </motion.div>
+
+            {/* NEW: Right Arrow */}
+            <button
+              onClick={() =>
+                setFocusedIdx(
+                  Math.min(CATEGORY_FOLDERS.length - 1, focusedIdx + 1),
+                )
+              }
+              className={`absolute right-2 md:right-8 z-30 p-2 md:p-3 rounded-full bg-white/40 hover:bg-white/70 backdrop-blur-md transition-all duration-300 border border-white/50 shadow-sm ${
+                focusedIdx === CATEGORY_FOLDERS.length - 1
+                  ? "opacity-0 pointer-events-none"
+                  : "opacity-100"
+              }`}
+              style={{ color: focusedCat.color }}
+            >
+              <ChevronRight size={28} strokeWidth={2.5} />
+            </button>
           </div>
 
           <div className="flex flex-col items-center gap-4 mt-2 z-20">
@@ -359,7 +398,6 @@ export default function Lists() {
                   boxShadow: `0 8px 24px ${focusedCat.color}60`,
                 }}
               >
-                {/* Smaller plus icon inside the button */}
                 <Plus size={16} strokeWidth={3.5} />
               </button>
             </div>
@@ -367,17 +405,9 @@ export default function Lists() {
         </div>
       )}
 
+      {/* Simplified Bottom Dots (Removed tiny side arrows since we have big ones now) */}
       {!loading && !activeCategory && (
-        // Adjusted bottom offset from 10 to 6
-        <div className="absolute bottom-6 left-0 right-0 z-20 flex items-center justify-center gap-5">
-          <button
-            onClick={() => setFocusedIdx(Math.max(0, focusedIdx - 1))}
-            disabled={focusedIdx === 0}
-            className="p-2 transition-opacity disabled:opacity-20"
-            style={{ color: focusedCat.color }}
-          >
-            <ChevronLeft size={22} strokeWidth={3} />
-          </button>
+        <div className="absolute bottom-6 left-0 right-0 z-20 flex items-center justify-center">
           <div className="flex items-center gap-3">
             {CATEGORY_FOLDERS.map((cat, i) => (
               <button
@@ -394,18 +424,6 @@ export default function Lists() {
               />
             ))}
           </div>
-          <button
-            onClick={() =>
-              setFocusedIdx(
-                Math.min(CATEGORY_FOLDERS.length - 1, focusedIdx + 1),
-              )
-            }
-            disabled={focusedIdx === CATEGORY_FOLDERS.length - 1}
-            className="p-2 transition-opacity disabled:opacity-20"
-            style={{ color: focusedCat.color }}
-          >
-            <ChevronRight size={22} strokeWidth={3} />
-          </button>
         </div>
       )}
 

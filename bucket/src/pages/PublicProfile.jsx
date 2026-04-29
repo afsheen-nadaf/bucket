@@ -1,10 +1,37 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import { User, Star, Lock, List, PlusCircle, Sparkles } from "lucide-react";
+import { useAuth } from "../contexts/AuthContext";
+import {
+  User,
+  Star,
+  Lock,
+  List,
+  PlusCircle,
+  Sparkles,
+  UserPlus,
+} from "lucide-react";
+
+// Format the dynamic text verb depending on the category
+function getActionText(category) {
+  switch (category?.toLowerCase()) {
+    case "movies":
+    case "shows":
+      return "watched and rated";
+    case "books":
+      return "read and rated";
+    case "music":
+      return "listened to and rated";
+    case "places":
+      return "visited";
+    default:
+      return "rated";
+  }
+}
 
 export default function PublicProfile() {
   const { username } = useParams();
+  const { user } = useAuth();
   const [profile, setProfile] = useState(null);
   const [publicLists, setPublicLists] = useState([]);
   const [ratings, setRatings] = useState([]);
@@ -13,9 +40,13 @@ export default function PublicProfile() {
   const [activeTab, setActiveTab] = useState("activity");
   const [loading, setLoading] = useState(true);
 
+  // Friend status states
+  const [friendStatus, setFriendStatus] = useState("none"); // 'none', 'friends', 'sent', 'received'
+  const [toastMessage, setToastMessage] = useState(null);
+
   useEffect(() => {
     fetchUserData();
-  }, [username]);
+  }, [username, user]);
 
   const fetchUserData = async () => {
     setLoading(true);
@@ -31,6 +62,25 @@ export default function PublicProfile() {
       return;
     }
     setProfile(profileData);
+
+    // Fetch friend status if the viewer is logged in and not viewing their own profile
+    if (user && user.id !== profileData.id) {
+      const { data: rel } = await supabase
+        .from("friends")
+        .select("*")
+        .or(
+          `and(requester_id.eq.${user.id},receiver_id.eq.${profileData.id}),and(requester_id.eq.${profileData.id},receiver_id.eq.${user.id})`,
+        )
+        .maybeSingle();
+
+      if (rel) {
+        if (rel.status === "accepted") setFriendStatus("friends");
+        else if (rel.requester_id === user.id) setFriendStatus("sent");
+        else setFriendStatus("received");
+      } else {
+        setFriendStatus("none");
+      }
+    }
 
     const { data: listsData } = await supabase
       .from("lists")
@@ -82,6 +132,25 @@ export default function PublicProfile() {
     setLoading(false);
   };
 
+  const showToast = (message) => {
+    setToastMessage(message);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const handleAddFriend = async () => {
+    if (!user || !profile) return;
+    const { error } = await supabase
+      .from("friends")
+      .insert([
+        { requester_id: user.id, receiver_id: profile.id, status: "pending" },
+      ]);
+
+    if (!error) {
+      setFriendStatus("sent");
+      showToast("Friend request sent!");
+    }
+  };
+
   const glassCard = {
     background: "rgba(220, 230, 255, 0.82)",
     backdropFilter: "blur(28px) saturate(190%)",
@@ -127,32 +196,79 @@ export default function PublicProfile() {
 
   return (
     <div className="max-w-3xl mx-auto lowercase relative z-10">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-ink text-white px-5 py-2.5 rounded-full shadow-xl z-[9999] text-sm font-semibold animate-fade-in">
+          {toastMessage}
+        </div>
+      )}
+
       {/* Header */}
       <div
-        className="p-8 rounded-[2rem] text-ink flex items-center gap-6 mb-8 transition-transform hover:-translate-y-0.5"
+        className="p-8 rounded-[2rem] text-ink flex flex-col md:flex-row items-center md:items-start justify-between gap-6 mb-8 transition-transform hover:-translate-y-0.5"
         style={glassCard}
       >
-        <div className="relative">
-          <div className="w-24 h-24 bg-white/60 backdrop-blur-md rounded-full flex items-center justify-center border-2 border-white/80 shadow-inner">
-            <User size={44} className="text-cornflower" />
+        <div className="flex items-center gap-6 w-full">
+          <div className="relative flex-shrink-0">
+            <div className="w-24 h-24 bg-white/60 backdrop-blur-md rounded-full flex items-center justify-center border-2 border-white/80 shadow-inner overflow-hidden">
+              {profile.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt="avatar"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <User size={44} className="text-cornflower" />
+              )}
+            </div>
+          </div>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-3xl text-ink font-poppins font-bold drop-shadow-sm truncate">
+              @{profile.username}
+            </h1>
+            <p className="font-poppins text-sm text-ink/70 mt-1 leading-relaxed line-clamp-3">
+              {profile.bio || "no bio yet."}
+            </p>
+            <div className="flex flex-wrap gap-3 mt-3">
+              <span className="text-xs font-poppins font-semibold text-cornflower bg-white/60 px-3 py-1 rounded-full border border-white/70 shadow-sm">
+                {ratings.length} ratings
+              </span>
+              <span className="text-xs font-poppins font-semibold text-cornflower bg-white/60 px-3 py-1 rounded-full border border-white/70 shadow-sm">
+                {publicLists.length} lists
+              </span>
+            </div>
           </div>
         </div>
-        <div className="flex-1">
-          <h1 className="text-3xl text-ink font-poppins font-bold drop-shadow-sm">
-            @{profile.username}
-          </h1>
-          <p className="font-poppins text-sm text-ink/70 mt-1 leading-relaxed">
-            {profile.bio || "no bio yet."}
-          </p>
-          <div className="flex gap-4 mt-3">
-            <span className="text-xs font-poppins font-semibold text-cornflower bg-white/60 px-3 py-1 rounded-full border border-white/70 shadow-sm">
-              {ratings.length} ratings
-            </span>
-            <span className="text-xs font-poppins font-semibold text-cornflower bg-white/60 px-3 py-1 rounded-full border border-white/70 shadow-sm">
-              {publicLists.length} public lists
-            </span>
+
+        {/* Add Friend Button Area */}
+        {user && user.id !== profile.id && (
+          <div className="flex-shrink-0 mt-2 md:mt-0 w-full md:w-auto flex justify-center md:justify-end">
+            {friendStatus === "friends" && (
+              <span className="text-xs font-poppins font-bold text-ink/40 bg-white/60 px-4 py-2 rounded-full border border-white/50">
+                friends
+              </span>
+            )}
+            {friendStatus === "sent" && (
+              <span className="text-xs font-poppins font-bold text-cornflower bg-cornflower/10 px-4 py-2 rounded-full border border-cornflower/20">
+                request sent
+              </span>
+            )}
+            {friendStatus === "received" && (
+              <span className="text-xs font-poppins font-bold text-ink/40 bg-white/60 px-4 py-2 rounded-full border border-white/50">
+                check requests
+              </span>
+            )}
+            {friendStatus === "none" && (
+              <button
+                onClick={handleAddFriend}
+                className="flex items-center gap-1.5 text-xs font-poppins font-bold text-white bg-cornflower px-5 py-2.5 rounded-full hover:scale-105 active:scale-95 transition-all shadow-md"
+              >
+                <UserPlus size={14} strokeWidth={2.5} />
+                add friend
+              </button>
+            )}
           </div>
-        </div>
+        )}
       </div>
 
       {/* Tabs */}
@@ -404,7 +520,9 @@ function ActivityCard({ event, timeAgo, glassCard }) {
           <Star size={18} className="text-yellow-500 fill-yellow-400" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-poppins text-sm text-ink/60 mb-0.5">rated</p>
+          <p className="font-poppins text-sm text-ink/60 mb-0.5">
+            {getActionText(data.category)}
+          </p>
           <h3
             className="text-base text-ink truncate"
             style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 700 }}
