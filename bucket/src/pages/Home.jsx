@@ -167,7 +167,7 @@ export default function Home() {
     "bg-white/40 text-cornflower ring-1 ring-cornflower/30";
 
   return (
-    <div className="max-w-2xl mx-auto animate-fade-in lowercase relative">
+    <div className="max-w-2xl mx-auto animate-fade-in lowercase relative px-3 sm:px-4 md:px-6">
       <div className="relative z-10">
         <RecsStrip />
 
@@ -571,7 +571,7 @@ function RatingInner({ item, badgeClass }) {
         <span
           className={`text-[10px] font-semibold px-2.5 py-1 rounded-full font-poppins ${badgeClass(item.category)}`}
         >
-          {item.category}
+          {item.category === 'Movies' ? 'movies & tv' : item.category}
         </span>
         <div className="flex items-center gap-0.5">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -618,7 +618,7 @@ function ListInner({ item, badgeClass }) {
       <span
         className={`text-[10px] font-semibold px-2.5 py-1 rounded-full inline-block mb-2 font-poppins ${badgeClass(item.category)}`}
       >
-        {item.category}
+        {item.category === 'Movies' ? 'movies & tv' : item.category}
       </span>
       {item.description && (
         <p className="text-ink/50 text-xs leading-relaxed line-clamp-2 font-poppins">

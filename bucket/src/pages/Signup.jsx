@@ -131,7 +131,7 @@ export default function Signup() {
       <AuthBackground />
 
       <div
-        className="relative z-10 w-full max-w-[420px] rounded-[2rem] p-10 md:p-10 flex flex-col gap-6 mx-4 md:mx-0 shadow-xl"
+        className="relative z-10 w-full max-w-[420px] rounded-[2rem] p-6 sm:p-8 md:p-10 flex flex-col gap-6 mx-4 md:mx-0 shadow-xl"
         style={{
           background: "rgba(255,255,255,0.55)",
           backdropFilter: "blur(24px)",
@@ -141,7 +141,7 @@ export default function Signup() {
       >
         <div className="flex flex-col items-center gap-3">
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl md:text-3xl font-extrabold text-ink">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-sniglet font-extrabold text-ink">
               bucket
             </h1>
             <Sparkles size={28} className="text-cornflower" />
@@ -191,10 +191,10 @@ export default function Signup() {
           </div>
         ) : (
           <form onSubmit={handleSignup} className="flex flex-col gap-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="flex flex-col gap-2">
                 <label
-                  className="text-[11px] font-bold uppercase tracking-wider"
+                  className="text-xs sm:text-[11px] font-bold uppercase tracking-wider"
                   style={{ color: "rgba(26,26,46,0.6)" }}
                 >
                   first name
@@ -221,7 +221,7 @@ export default function Signup() {
 
               <div className="flex flex-col gap-2">
                 <label
-                  className="text-[11px] font-bold uppercase tracking-wider"
+                  className="text-xs sm:text-[11px] font-bold uppercase tracking-wider"
                   style={{ color: "rgba(26,26,46,0.6)" }}
                 >
                   last name

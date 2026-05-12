@@ -9,7 +9,7 @@ import { useAuth } from "../contexts/AuthContext";
 import Folder from "../components/Folder";
 
 const CATEGORY_FOLDERS = [
-  { id: "Movies", label: "MOVIES", color: "#F0607E" },
+  { id: "Movies", label: "MOVIES & TV", color: "#F0607E" },
   { id: "Books", label: "BOOKS", color: "#F5A623" },
   { id: "Music", label: "MUSIC", color: "#A855F7" },
   { id: "Places", label: "PLACES", color: "#72B30E" },
@@ -196,7 +196,7 @@ export default function Lists() {
             {/* NEW: Left Arrow */}
             <button
               onClick={() => setFocusedIdx(Math.max(0, focusedIdx - 1))}
-              className={`absolute left-2 md:left-8 z-30 p-2 md:p-3 rounded-full bg-white/40 hover:bg-white/70 backdrop-blur-md transition-all duration-300 border border-white/50 shadow-sm ${
+              className={`absolute left-2 sm:left-4 md:left-8 z-30 p-2 sm:p-2.5 md:p-3 rounded-full bg-white/40 hover:bg-white/70 backdrop-blur-md transition-all duration-300 border border-white/50 shadow-sm ${
                 focusedIdx === 0
                   ? "opacity-0 pointer-events-none"
                   : "opacity-100"
@@ -350,7 +350,7 @@ export default function Lists() {
                   Math.min(CATEGORY_FOLDERS.length - 1, focusedIdx + 1),
                 )
               }
-              className={`absolute right-2 md:right-8 z-30 p-2 md:p-3 rounded-full bg-white/40 hover:bg-white/70 backdrop-blur-md transition-all duration-300 border border-white/50 shadow-sm ${
+              className={`absolute right-2 sm:right-4 md:right-8 z-30 p-2 sm:p-2.5 md:p-3 rounded-full bg-white/40 hover:bg-white/70 backdrop-blur-md transition-all duration-300 border border-white/50 shadow-sm ${
                 focusedIdx === CATEGORY_FOLDERS.length - 1
                   ? "opacity-0 pointer-events-none"
                   : "opacity-100"

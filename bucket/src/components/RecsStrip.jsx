@@ -4,12 +4,13 @@ import { Sparkles, HeartCrack, Heart } from "lucide-react";
 import AddToListModal from "./AddToListModal";
 import TiltedCard from "./TiltedCard";
 
+// Updated to standard emojis and pink colors for movies!
 const categoryConfig = {
-  books: { bg: "bg-[#FAEEDA]", text: "text-[#633806]", emoji: "📖" },
-  movies: { bg: "bg-[#FBEAF0]", text: "text-[#72243E]", emoji: "🎬" },
-  music: { bg: "bg-[#EEEDFE]", text: "text-[#3C3489]", emoji: "🎵" },
-  places: { bg: "bg-[#EAF3DE]", text: "text-[#27500A]", emoji: "📍" },
-  default: { bg: "bg-[#E8EEF9]", text: "text-[#6495ED]", emoji: "✨" },
+  books: { pillBg: "bg-amber-100", text: "text-amber-800", emoji: "📚", label: "books" },
+  movies: { pillBg: "bg-pink-100", text: "text-pink-700", emoji: "🎬", label: "movies & tv" },
+  music: { pillBg: "bg-purple-100", text: "text-purple-700", emoji: "🎵", label: "music" },
+  places: { pillBg: "bg-green-100", text: "text-green-700", emoji: "📍", label: "places" },
+  default: { pillBg: "bg-blue-100", text: "text-blue-700", emoji: "✨", label: "item" },
 };
 
 export default function RecsStrip() {
@@ -20,7 +21,6 @@ export default function RecsStrip() {
   const [savingId, setSavingId] = useState(null);
   const [selectedRec, setSelectedRec] = useState(null);
 
-  // Track window width to dynamically calculate maximum card spread
   const [screenWidth, setScreenWidth] = useState(
     typeof window !== "undefined" ? window.innerWidth : 1200,
   );
@@ -112,25 +112,20 @@ export default function RecsStrip() {
   const displayRecs = [...recs];
   const showDots = !loading && displayRecs.length > 2;
 
-  // --- DYNAMIC EDGE-TO-EDGE SPACING ALGORITHM ---
   const activeCardsCount = displayRecs.length;
   const maxDepth = Math.ceil((activeCardsCount - 1) / 2);
 
-  // Calculate the maximum X distance the furthest card can travel from the center of the screen
   const marginFromEdge = 20;
-  const halfCardWidth = 155; // 310px wide card
+  const halfCardWidth = 155; 
   const maxSpread = Math.max(
     80,
     screenWidth / 2 - halfCardWidth - marginFromEdge,
   );
 
-  // TIGHT DECK LOGIC: Cap the maximum gap at 100px so few cards stay tightly overlapped.
-  // As cards increase, they spread outwards until they hit maxSpread, then the gap compresses.
   const baseGap = 100;
   const dynamicGap =
     maxDepth > 0 ? Math.min(baseGap, maxSpread / maxDepth) : baseGap;
 
-  // Refined scaling and opacity so tight decks don't fade out too drastically
   const baseScaleDrop = 0.06;
   const dynamicScaleDrop =
     maxDepth > 0 ? Math.min(baseScaleDrop, 0.4 / maxDepth) : baseScaleDrop;
@@ -140,9 +135,7 @@ export default function RecsStrip() {
     maxDepth > 0 ? Math.min(baseOpacityDrop, 0.6 / maxDepth) : baseOpacityDrop;
 
   return (
-    // BREAKOUT: Used w-screen and left-1/2 -translate-x-1/2 to break out of the parent's width constraints!
     <div className="mb-14 w-screen relative left-1/2 -translate-x-1/2 lowercase flex flex-col items-center overflow-hidden">
-      {/* Circular aura blobs */}
       <div
         className="absolute pointer-events-none -z-10"
         style={{
@@ -170,7 +163,6 @@ export default function RecsStrip() {
         }}
       />
 
-      {/* Section Header */}
       <div className="flex items-center justify-center gap-2 mb-10 px-2 text-center">
         <Sparkles size={28} className="text-white drop-shadow-sm" />
         <h2 className="text-2xl font-poppins font-semibold text-white tracking-wide drop-shadow-sm">
@@ -178,10 +170,8 @@ export default function RecsStrip() {
         </h2>
       </div>
 
-      {/* Edge-to-Edge Deck Container (Removed max-w constraint) */}
       <div className="relative w-full h-[520px] mx-auto perspective-1000 flex justify-center">
         {loading ? (
-          /* Render 7 skeletons to show off the fanning state while loading */
           Array.from({ length: 7 }).map((_, i) => {
             const depth = Math.ceil(i / 2);
             const dir = i % 2 === 1 ? 1 : -1;
@@ -239,7 +229,6 @@ export default function RecsStrip() {
               rec.category?.toLowerCase() === "places" || !rec.cover_url;
             const isTopCard = index === 0;
 
-            // Horizontal Laid Out Math using our tighter base gap
             const depth = Math.ceil(index / 2);
             const dir = index % 2 === 1 ? 1 : -1;
 
@@ -277,7 +266,6 @@ export default function RecsStrip() {
                     className="w-full rounded-[28px] p-5 flex flex-col h-[460px] relative overflow-hidden"
                     style={glassStyle}
                   >
-                    {/* Glossy shine strip */}
                     <div
                       className="absolute top-0 left-0 right-0 pointer-events-none rounded-t-[28px]"
                       style={{
@@ -288,22 +276,20 @@ export default function RecsStrip() {
                       }}
                     />
 
-                    {/* Poster / Emoji */}
+                    {/* Poster / Emoji -> Background removed! */}
                     <div
-                      className={`w-full h-48 rounded-[18px] overflow-hidden mb-4 flex-shrink-0 flex items-center justify-center relative z-10 ${
-                        useEmoji ? catStyle.bg : ""
-                      }`}
+                      className={`w-full h-48 rounded-[18px] overflow-hidden mb-4 flex-shrink-0 flex items-center justify-center relative z-10`}
                       style={{
-                        boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
+                        boxShadow: useEmoji ? "none" : "0 4px 20px rgba(0,0,0,0.12)",
                         background: useEmoji
-                          ? undefined
+                          ? "transparent"
                           : "rgba(180,200,255,0.3)",
                       }}
                     >
                       {useEmoji ? (
-                        <span className="text-5xl drop-shadow-md">
-                          {catStyle.emoji}
-                        </span>
+<span className={`text-[10px] font-bold px-3 py-1 rounded-full inline-block mb-2 shadow-sm ${catStyle.pillBg} ${catStyle.text}`}>
+  {catStyle.emoji} {catStyle.label || rec.category}
+</span>
                       ) : (
                         <img
                           src={rec.cover_url}
@@ -313,10 +299,10 @@ export default function RecsStrip() {
                       )}
                     </div>
 
-                    {/* Card Body */}
                     <div className="flex flex-col items-center text-center relative z-10 flex-1">
+                      {/* Uses pillBg for the consistent pink style */}
                       <span
-                        className={`text-[10px] font-bold px-3 py-1 rounded-full inline-block mb-2 shadow-sm ${catStyle.bg} ${catStyle.text}`}
+                        className={`text-[10px] font-bold px-3 py-1 rounded-full inline-block mb-2 shadow-sm ${catStyle.pillBg} ${catStyle.text}`}
                       >
                         {catStyle.emoji} {rec.category}
                       </span>
@@ -342,7 +328,6 @@ export default function RecsStrip() {
                       )}
                     </div>
 
-                    {/* Action Buttons */}
                     <div className="flex justify-center gap-3 mt-auto pt-3 relative z-10">
                       <button
                         onClick={() => handleDismiss(rec)}
@@ -384,7 +369,6 @@ export default function RecsStrip() {
         )}
       </div>
 
-      {/* Dot indicator */}
       {showDots && (
         <div className="flex items-center gap-1.5 mt-4">
           {displayRecs

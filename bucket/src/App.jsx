@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { BrowserRouter, Routes, Route, Outlet, useNavigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
@@ -13,6 +13,25 @@ import Friends from "./pages/Friends";
 import PublicProfile from "./pages/PublicProfile";
 import SplashScreen from "./components/SplashScreen";
 import UpdatePassword from "./pages/UpdatePassword";
+import { supabase } from "./lib/supabase";
+
+function AuthRedirectHandler() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY") {
+        navigate("/update-password");
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  return null;
+}
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -21,6 +40,7 @@ function App() {
     <>
       {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
       <BrowserRouter>
+        <AuthRedirectHandler />
         <AuthProvider>
           <Routes>
             {/* Public Auth Routes */}

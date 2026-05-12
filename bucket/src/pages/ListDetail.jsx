@@ -12,15 +12,16 @@ import {
   Sparkles,
   Loader,
   Heart,
+  SearchX // Added for the empty state!
 } from "lucide-react";
 import RatingModal from "../components/RatingModal";
 import AddToListModal from "../components/AddToListModal";
 
 const CATEGORY_META = {
-  Movies: { color: "#E05A7A", emoji: "🎬", placeholder: "movie" },
-  Books: { color: "#D97706", emoji: "📖", placeholder: "book" },
-  Music: { color: "#7C3AED", emoji: "🎵", placeholder: "album or artist" },
-  Places: { color: "#65A30D", emoji: "📍", placeholder: "place" },
+  Movies: { color: "#E05A7A", emoji: "🎬", placeholder: "movie", label: "movies & tv" },
+  Books: { color: "#D97706", emoji: "📖", placeholder: "book", label: "books" },
+  Music: { color: "#7C3AED", emoji: "🎵", placeholder: "album or artist", label: "music" },
+  Places: { color: "#65A30D", emoji: "📍", placeholder: "place", label: "places" },
 };
 
 const getVerb = (category) => {
@@ -186,7 +187,6 @@ export default function ListDetail() {
       setQuery("");
 
       if (alreadyExists) {
-        // Open rating modal immediately to let them review it, but it's not marked 'done' yet
         const groupedRepresentation = {
           ...data[0],
           is_done: false,
@@ -210,7 +210,6 @@ export default function ListDetail() {
 
   const toggleItemDone = async (groupedItem) => {
     if (groupedItem.is_done) {
-      // If it's already done, unmark it immediately
       const idsToUpdate = groupedItem.instances.map((i) => i.id);
       const { error } = await supabase
         .from("list_items")
@@ -225,13 +224,10 @@ export default function ListDetail() {
         );
       }
     } else {
-      // If it's not done, just open the rating modal.
-      // We will mark it as done ONLY when they click "Save Rating" in the modal.
       setSelectedItemForRating(groupedItem);
     }
   };
 
-  // Callback to handle when the user explicitly saves from the RatingModal
   const handleRatingSaved = async (groupedItem) => {
     const idsToUpdate = groupedItem.instances.map((i) => i.id);
     const { error } = await supabase
@@ -459,7 +455,7 @@ export default function ListDetail() {
                       className="text-[10px] font-bold px-3 py-1 rounded-full text-white"
                       style={{ background: meta.color }}
                     >
-                      {list.category}
+                      {meta.label || list.category}
                     </span>
                     {isOwner && (
                       <span
@@ -674,8 +670,7 @@ export default function ListDetail() {
                         />
                       ) : (
                         <div
-                          className="w-10 h-10 rounded-lg flex items-center justify-center text-lg shrink-0"
-                          style={{ background: `${meta.color}18` }}
+                          className="w-10 h-10 rounded-lg flex items-center justify-center text-lg shrink-0 bg-transparent"
                         >
                           {meta.emoji}
                         </div>
@@ -709,6 +704,17 @@ export default function ListDetail() {
                 ))}
               </div>
             )}
+            
+            {/* The Empty State for zero search results! */}
+            {query.trim() !== "" && !isSearching && searchResults.length === 0 && (
+              <div className="text-center py-10 opacity-70 flex flex-col items-center">
+                <SearchX size={32} className="mb-3 text-slate-400" />
+                <p className="text-sm font-medium lowercase font-poppins text-slate-500">
+                  nothing here... try something else?
+                </p>
+              </div>
+            )}
+            
           </div>
         )}
 
@@ -751,7 +757,6 @@ export default function ListDetail() {
                     : "0 8px 28px rgba(80,100,200,0.10), 0 2px 8px rgba(0,0,0,0.04)",
                 }}
               >
-                {/* Owner controls: Mark done & Delete */}
                 {isOwner && (
                   <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                     <button
@@ -789,7 +794,6 @@ export default function ListDetail() {
                   </div>
                 )}
 
-                {/* Non-owner controls: Save to list */}
                 {!isOwner && user && (
                   <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                     <button
@@ -856,12 +860,9 @@ export default function ListDetail() {
                     />
                   ) : (
                     <div
-                      className="w-full aspect-[2/3] flex flex-col items-center justify-center gap-2 p-4 text-center"
-                      style={{
-                        background: `linear-gradient(145deg, ${meta.color}10, ${meta.color}22)`,
-                      }}
+                      className="w-full aspect-[2/3] flex flex-col items-center justify-center gap-2 p-4 text-center bg-transparent"
                     >
-                      <span className="text-3xl">{meta.emoji}</span>
+                      <span className="text-4xl">{meta.emoji}</span>
                       <span
                         className="text-xs font-bold line-clamp-2"
                         style={{ color: meta.color }}

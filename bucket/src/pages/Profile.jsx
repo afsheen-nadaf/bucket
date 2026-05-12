@@ -21,8 +21,9 @@ import {
   Sparkles,
   Lock,
   X,
-  Edit2, // Added missing Edit2 import
-  LogOut, // Added missing LogOut import
+  Edit2, 
+  LogOut, 
+  SearchX,
 } from "lucide-react";
 
 function GooeyFilter({ filterId, blur }) {
@@ -593,7 +594,7 @@ export default function Profile() {
     return <div className="text-center py-16 text-ink/60">loading...</div>;
 
   return (
-    <div className="max-w-4xl mx-auto lowercase relative z-10 pb-12 mt-12 px-4">
+    <div className="max-w-4xl mx-auto lowercase relative z-10 pb-12 mt-6 sm:mt-8 md:mt-12 px-3 sm:px-4 md:px-6">
       {/* Toast Notification for info messages */}
       {toastMessage && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-ink text-white px-5 py-2.5 rounded-full shadow-xl z-[9999] text-sm font-semibold animate-fade-in">
@@ -1051,7 +1052,8 @@ export default function Profile() {
                         </p>
                         {list.category && (
                           <span className="font-poppins text-[10px] text-ink/35">
-                            {list.category}
+                            {/* NEW: Updated category mapping here! */}
+                            {list.category.toLowerCase() === 'movies' ? 'movies & tv' : list.category}
                           </span>
                         )}
                       </div>
@@ -1069,7 +1071,7 @@ export default function Profile() {
 
       {/* RATINGS */}
       {activeTab === "ratings" && (
-        <div>
+        <div className="flex justify-center">
           {ratings.length === 0 ? (
             <div className="p-14 rounded-[2rem] text-center" style={glass}>
               <Star size={32} className="mx-auto text-cornflower/30 mb-3" />
@@ -1078,7 +1080,7 @@ export default function Profile() {
               </p>
             </div>
           ) : (
-            <div className="flex flex-col gap-3 max-w-3xl">
+            <div className="flex flex-col gap-3 max-w-3xl w-full px-4 md:px-0">
               {ratings.map((r) => (
                 <div
                   key={r.id}
@@ -1088,7 +1090,7 @@ export default function Profile() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex flex-col gap-2 flex-1">
                       <span className="font-poppins text-[10px] font-bold px-2.5 py-1 bg-white/65 text-cornflower rounded-full border border-white/65 w-fit">
-                        {r.category}
+                        {r.category === 'Movies' ? 'movies & tv' : r.category}
                       </span>
                       <h3 className="font-poppins font-bold text-ink text-lg leading-snug">
                         {r.title}
@@ -1191,9 +1193,17 @@ export default function Profile() {
                 </div>
               )}
               {searchQuery && searchResults.length === 0 && (
-                <p className="font-poppins text-xs text-ink/35 text-center py-2">
-                  no users found
-                </p>
+                <div className="flex flex-col items-center justify-center gap-2 py-6 px-4">
+                  <SearchX size={28} className="text-cornflower/40" />
+                  <div className="text-center">
+                    <p className="font-poppins text-sm font-medium text-ink/50">
+                      nothing here...
+                    </p>
+                    <p className="font-poppins text-xs text-ink/35 mt-0.5">
+                      try a different username
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
 

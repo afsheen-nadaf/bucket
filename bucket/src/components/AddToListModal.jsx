@@ -4,12 +4,13 @@ import { supabase } from "../lib/supabase";
 import { Check, Plus, X } from "lucide-react";
 import CreateListModal from "./CreateListModal";
 
+// Updated to standard emojis and pink colors for movies!
 const categoryConfig = {
-  books: { bg: "bg-[#FAEEDA]", text: "text-[#633806]", emoji: "📖" },
-  movies: { bg: "bg-[#FBEAF0]", text: "text-[#72243E]", emoji: "🎬" },
-  music: { bg: "bg-[#EEEDFE]", text: "text-[#3C3489]", emoji: "🎵" },
-  places: { bg: "bg-[#EAF3DE]", text: "text-[#27500A]", emoji: "📍" },
-  default: { bg: "bg-[#E8EEF9]", text: "text-[#6495ED]", emoji: "✨" },
+  books: { pillBg: "bg-amber-100", text: "text-amber-800", emoji: "📚", label: "books" },
+  movies: { pillBg: "bg-pink-100", text: "text-pink-700", emoji: "🎬", label: "movies & tv" },
+  music: { pillBg: "bg-purple-100", text: "text-purple-700", emoji: "🎵", label: "music" },
+  places: { pillBg: "bg-green-100", text: "text-green-700", emoji: "📍", label: "places" },
+  default: { pillBg: "bg-blue-100", text: "text-blue-700", emoji: "✨", label: "item" },
 };
 
 const glassStyle = {
@@ -49,10 +50,31 @@ export default function AddToListModal({ item, onClose, onSuccess }) {
         `${import.meta.env.VITE_API_URL}/api/lists/mine`,
         {
           headers: { Authorization: `Bearer ${session.access_token}` },
-        },
+        }
       );
       const data = await res.json();
-      setLists(data.lists || []);
+      const fetchedLists = data.lists || [];
+
+      // Fetch the actual item counts for these lists!
+      if (fetchedLists.length > 0) {
+        const listIds = fetchedLists.map(l => l.id);
+        const { data: itemsData } = await supabase
+          .from("list_items")
+          .select("list_id")
+          .in("list_id", listIds);
+
+        const counts = {};
+        itemsData?.forEach(itemRow => {
+          counts[itemRow.list_id] = (counts[itemRow.list_id] || 0) + 1;
+        });
+
+        setLists(fetchedLists.map(l => ({
+          ...l,
+          item_count: counts[l.id] || 0
+        })));
+      } else {
+        setLists([]);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -78,8 +100,8 @@ export default function AddToListModal({ item, onClose, onSuccess }) {
             item_name: item.item_name,
             category: item.category,
             external_id: item.external_id,
-            cover_url: item.cover_url, // Sending cover_url for the DB
-            creator: item.creator, // Sending creator for the DB
+            cover_url: item.cover_url,
+            creator: item.creator,
           }),
         },
       );
@@ -124,9 +146,9 @@ export default function AddToListModal({ item, onClose, onSuccess }) {
         }}
         onClick={onClose}
       />
-      <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 lowercase pointer-events-none">
+      <div className="fixed inset-0 z-[10000] flex items-center justify-center p-3 sm:p-4 lowercase pointer-events-none">
         <div
-          className="w-full max-w-md p-8 rounded-[2rem] relative flex flex-col pointer-events-auto"
+          className="w-full max-w-md p-6 sm:p-8 rounded-[2rem] relative flex flex-col pointer-events-auto"
           style={{
             ...glassStyle,
             animation: "slideUp 0.25s ease both",
@@ -144,17 +166,15 @@ export default function AddToListModal({ item, onClose, onSuccess }) {
 
           <div className="flex items-center gap-3 mb-6">
             <div
-              className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl shrink-0 ${catStyle.bg} border border-black/5`}
+              className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl shrink-0 border border-black/5 bg-transparent`}
             >
               {catStyle.emoji}
             </div>
             <div>
               <h2 className="font-bold text-lg">{item.item_name}</h2>
-              <span
-                className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full inline-block mt-1 ${catStyle.bg} ${catStyle.text}`}
-              >
-                {item.category}
-              </span>
+<span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full inline-block mt-1 ${catStyle.pillBg} ${catStyle.text}`}>
+  {catStyle.label || item.category} 
+</span>
             </div>
           </div>
 
@@ -168,12 +188,6 @@ export default function AddToListModal({ item, onClose, onSuccess }) {
             <div className="flex flex-col gap-3 mb-6">
               {applicableLists.length > 0 ? (
                 applicableLists.map((list) => {
-                  const categoryColor =
-                    categoryConfig[list.category?.toLowerCase()]?.bg ||
-                    categoryConfig.default.bg;
-                  const categoryText =
-                    categoryConfig[list.category?.toLowerCase()]?.text ||
-                    categoryConfig.default.text;
                   const categoryEmoji =
                     categoryConfig[list.category?.toLowerCase()]?.emoji ||
                     categoryConfig.default.emoji;
@@ -184,8 +198,8 @@ export default function AddToListModal({ item, onClose, onSuccess }) {
                       disabled={addingId === list.id || addedId === list.id}
                       className="flex items-center justify-between px-4 py-3 rounded-full transition-all text-left group disabled:opacity-70"
                       style={{
-                        background:
-                          addedId === list.id ? "#dcfce7" : categoryColor,
+                        background: addedId === list.id ? "#dcfce7" : "transparent",
+                        border: addedId === list.id ? "1.5px solid #bbf7d0" : "1.5px solid rgba(0,0,0,0.05)",
                       }}
                     >
                       <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -196,8 +210,9 @@ export default function AddToListModal({ item, onClose, onSuccess }) {
                           <p className="font-bold text-sm truncate">
                             {list.title}
                           </p>
+                          {/* Replaced placeholder with dynamic item count */}
                           <p className="text-xs opacity-70 font-medium">
-                            {list.item_count} items
+                            {list.item_count === 1 ? "1 item" : `${list.item_count} items`}
                           </p>
                         </div>
                       </div>
