@@ -37,6 +37,7 @@ const verifyUser = async (req) => {
   return user;
 };
 
+// helper function to format results from different APIs into a consistent structure for the frontend. Each result will have an api_id (the unique identifier from the external API), title, cover_url, and creator (w
 const formatResult = (api_id, title, cover_url, creator) => ({
   api_id,
   title,
@@ -66,6 +67,7 @@ const getSpotifyToken = async () => {
       "Content-Type": "application/x-www-form-urlencoded",
       Authorization:
         "Basic " +
+        // The Spotify API requires the client ID and secret to be sent as a base64-encoded string in the Authorization header for token requests. This line encodes the client ID and secret in the format "clientId:clientSecret" to meet that requirement.
         Buffer.from(clientId + ":" + clientSecret).toString("base64"),
     },
     body: "grant_type=client_credentials",
@@ -103,6 +105,7 @@ app.get("/api/recommendations", async (req, res) => {
       .select("id, username")
       .in("id", friendIds);
     const profileMap = (profiles || []).reduce(
+      // acc is the accumulator object that starts as an empty object {}. For each profile p in the profiles array, we add a new key-value pair to the accumulator where the key is the profile's id and the value is the profile's username. This allows us to easily look up a friend's username by their user ID later when we want to display who recommended an item.
       (acc, p) => ({ ...acc, [p.id]: p.username }),
       {},
     );
@@ -167,6 +170,7 @@ app.get("/api/recommendations", async (req, res) => {
       .select("external_id")
       .eq("user_id", userId);
 
+      // We create a set of excluded IDs that combines the API IDs of items the user has already rated highly, items in their lists, and items they've dismissed. This allows us to efficiently filter out any recommendations that the user has already interacted with in some way, ensuring that we only show them new and relevant recommendations from their friends.
     const excludedIds = new Set([
       ...(myRatings || []).map((r) => r.api_id),
       ...(myListItems || []).map((i) => i.api_id),
@@ -400,18 +404,32 @@ app.get("/api/search", async (req, res) => {
           );
         });
     } else if (category === "Books") {
-      const response = await fetch(
-        `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=15`,
-      );
+      const apiKey = process.env.GOOGLE_BOOKS_API_KEY;
+      
+      const url = apiKey 
+        ? `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=15&key=${apiKey}`
+        : `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=15`;
+
+      const response = await fetch(url);
       const data = await response.json();
+
+      // Catch Google API errors (like rate limits) to prevent silent failures
+      if (data.error) {
+        console.error("Google Books API Error:", data.error.message);
+        return res.status(429).json({ error: data.error.message }); 
+      }
+
       const seenBooks = new Set();
 
       results = (data.items || [])
         .filter((b) => {
           const titleKey = b.volumeInfo.title?.toLowerCase();
           const idKey = b.id;
-          if (!titleKey || seenBooks.has(titleKey) || seenBooks.has(idKey))
+          
+          if (!titleKey || seenBooks.has(titleKey) || seenBooks.has(idKey)) {
             return false;
+          }
+          
           seenBooks.add(titleKey);
           seenBooks.add(idKey);
           return true;
@@ -422,10 +440,10 @@ app.get("/api/search", async (req, res) => {
             b.id,
             b.volumeInfo.title,
             b.volumeInfo.imageLinks?.thumbnail?.replace("http:", "https:"),
-            b.volumeInfo.authors?.[0] || "unknown author",
-          ),
+            b.volumeInfo.authors?.[0] || "unknown author"
+          )
         );
-    } else if (category === "Music") {
+    }else if (category === "Music") {
       const token = await getSpotifyToken();
 
       // Try to make query more track-specific
@@ -462,7 +480,7 @@ app.get("/api/search", async (req, res) => {
           ];
           if (junkyPhrases.some((p) => trackName.includes(p))) return false;
 
-          // dedup
+          // dedup by track name + artist, since Spotify often returns multiple versions of the same song (album version, single version, remaster, etc). This isn't perfect but it helps reduce clutter in the results.
           const key = `${t.name}-${t.artists[0]?.name}`.toLowerCase();
           if (seenTracks.has(key)) return false;
           seenTracks.add(key);
@@ -505,6 +523,7 @@ app.get("/api/search", async (req, res) => {
         return bScore - aScore;
       });
 
+      // dedup by name + city to avoid multiple entries for the same place (e.g. a cafe that appears in both "cafes" and "restaurants" categories, or the same place appearing multiple times with slightly different addresses). This isn't perfect but it helps reduce clutter in the results.
       const seen = new Set();
       results = features
         .filter((f) => {
@@ -546,6 +565,7 @@ app.get("/api/search", async (req, res) => {
   }
 });
 
+// start the server on the specified port and log a message to the console once it's up and running.
 app.listen(PORT, () => {
   console.log(`backend server listening on port ${PORT}`);
 });

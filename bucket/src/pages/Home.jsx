@@ -267,7 +267,6 @@ export default function Home() {
         )}
       </div>
 
-      // Background gradient circles for some subtle visual interest
       <style>{`
         @keyframes slideUp {
           from { transform: translateY(100%); }
