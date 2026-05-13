@@ -59,13 +59,14 @@ export default function UpdatePassword() {
     setIsLoading(false);
 
     if (error) {
-      setError(error.message);
-    } else {
-      setSuccess(true);
-      setTimeout(() => {
-        navigate("/login"); // Redirects to login now!
-      }, 2500);
-    }
+  setError(error.message);
+} else {
+  setSuccess(true);
+  setTimeout(async () => {
+    await supabase.auth.signOut();
+    navigate("/login");
+  }, 2500);
+}
   };
 
   return (
