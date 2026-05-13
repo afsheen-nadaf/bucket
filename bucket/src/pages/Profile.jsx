@@ -71,6 +71,7 @@ function SearchSVG({ layoutId }) {
 const gooeySpring = { duration: 0.4, type: "spring", bounce: 0.25 };
 
 function GooeySearch({ value, onValueChange, onSearch }) {
+  // useId --> generates a unique ID for the search bar
   const reactId = useId();
   const safeId = reactId.replace(/:/g, "");
   const filterId = `gooey-${safeId}`;
@@ -79,6 +80,7 @@ function GooeySearch({ value, onValueChange, onSearch }) {
   const prevExpanded = useRef(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
+  // useMemo to memoize the animation variants for the search bar and the bubble, since they don't depend on any changing state and we want to avoid unnecessary re-renders.
   const buttonVariants = useMemo(
     () => ({
       collapsed: { width: 130, marginLeft: 0 },
@@ -92,12 +94,14 @@ function GooeySearch({ value, onValueChange, onSearch }) {
     expanded: { scale: 1, opacity: 1 },
   };
 
+  // When the search bar expands, we want to focus the input. When it collapses, if there was a previous expanded state (i.e. it's not the initial render), we want to clear the search query. We track the previous expanded state using a ref so we can compare it in the useEffect without causing re-renders.
   useEffect(() => {
     if (isExpanded) inputRef.current?.focus();
     else if (prevExpanded.current) onValueChange("");
     prevExpanded.current = isExpanded;
   }, [isExpanded, onValueChange]);
 
+  // useCallback to memoize the handlers for blur and keydown events, since they depend on the onSearch prop which is stable and we want to avoid unnecessary re-renders of the input component.
   const handleBlur = useCallback(() => {
     if (!value) setIsExpanded(false);
   }, [value]);
@@ -176,6 +180,7 @@ function GooeySearch({ value, onValueChange, onSearch }) {
 function getActionText(category) {
   switch (category?.toLowerCase()) {
     case "movies":
+      return "watched and rated";
     case "shows":
       return "watched and rated";
     case "books":
@@ -225,6 +230,7 @@ export default function Profile() {
   const [toastMessage, setToastMessage] = useState(null);
   const [friendToRemove, setFriendToRemove] = useState(null);
 
+  // useRef to store references to the delete confirmation input and the avatar file input, so we can programmatically focus or clear them when needed without causing re-renders.
   const deleteConfirmRef = useRef(null);
   const avatarInputRef = useRef(null);
   const searchTimeoutRef = useRef(null);
@@ -233,6 +239,7 @@ export default function Profile() {
     if (user) fetchAll();
   }, [user]);
 
+  // Promise.all to fetch profile, ratings, lists, and friends data in parallel on initial load for better performance, since these are independent queries. We set loading to false after all data is fetched.
   const fetchAll = async () => {
     await Promise.all([fetchProfileData(), fetchFriendsData()]);
   };

@@ -12,7 +12,7 @@ import {
   Sparkles,
   Loader,
   Heart,
-  SearchX // Added for the empty state!
+  SearchX 
 } from "lucide-react";
 import RatingModal from "../components/RatingModal";
 import AddToListModal from "../components/AddToListModal";
@@ -68,9 +68,22 @@ export default function ListDetail() {
   });
   const [selectedItemForRating, setSelectedItemForRating] = useState(null);
   const [selectedItemForSaving, setSelectedItemForSaving] = useState(null);
+  
+  // NEW: Toast Notification State
+  const [toastMessage, setToastMessage] = useState(null); 
   const searchTimeoutRef = useRef(null);
 
   const isOwner = user && list && user.id === list.user_id;
+
+  // NEW: Toast auto-dismiss timer
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => {
+        setToastMessage(null);
+      }, 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
 
   useEffect(() => {
     fetchListDetails();
@@ -162,9 +175,19 @@ export default function ListDetail() {
     if (!error) navigate("/lists");
   };
 
+  // UPDATED: addItem function with early return and Toast instead of Alert
   const addItem = async (item) => {
     const existingInstances = items.filter((i) => i.api_id === item.api_id);
-    const alreadyExists = existingInstances.length > 0;
+    const hasUnfinishedInstance = existingInstances.some((i) => i.is_done === false);
+
+    if (hasUnfinishedInstance) {
+      setToastMessage("this is already in your list! finish it first.");
+      setSearchResults([]);
+      setQuery("");
+      return; 
+    }
+
+    const isRelog = existingInstances.length > 0;
 
     const { data, error } = await supabase
       .from("list_items")
@@ -175,7 +198,7 @@ export default function ListDetail() {
           title: item.title,
           cover_url: item.cover_url,
           creator: item.creator,
-          is_done: false, // Don't auto-mark as done until they explicitly save the rating
+          is_done: false, 
         },
       ])
       .select();
@@ -186,7 +209,7 @@ export default function ListDetail() {
       setSearchResults([]);
       setQuery("");
 
-      if (alreadyExists) {
+      if (isRelog) {
         const groupedRepresentation = {
           ...data[0],
           is_done: false,
@@ -705,7 +728,6 @@ export default function ListDetail() {
               </div>
             )}
             
-            {/* The Empty State for zero search results! */}
             {query.trim() !== "" && !isSearching && searchResults.length === 0 && (
               <div className="text-center py-10 opacity-70 flex flex-col items-center">
                 <SearchX size={32} className="mb-3 text-slate-400" />
@@ -924,10 +946,31 @@ export default function ListDetail() {
         />
       )}
 
+      {/* The Sleek Dark Pill Toast Notification */}
+      {toastMessage && (
+        <div 
+          className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] px-6 py-3.5 rounded-full flex items-center justify-center shadow-2xl"
+          style={{
+            background: "#262626", // Dark gray/almost black
+            color: "#ffffff",      // White text
+            border: "1px solid rgba(255,255,255,0.08)", // Subtle edge highlight
+            animation: "toastSlideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards"
+          }}
+        >
+          <span className="text-sm font-extrabold tracking-wide lowercase">
+            {toastMessage}
+          </span>
+        </div>
+      )}
+      {/* UPDATED: Added toastSlideUp animation to styles */}
       <style>{`
         @keyframes fadeSlideUp {
           from { opacity: 0; transform: translateY(12px); }
           to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes toastSlideUp {
+          from { opacity: 0; transform: translate(-50%, 20px); }
+          to   { opacity: 1; transform: translate(-50%, 0); }
         }
       `}</style>
     </div>

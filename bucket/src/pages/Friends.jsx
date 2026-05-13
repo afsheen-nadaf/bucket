@@ -78,6 +78,7 @@ export default function Friends() {
     const { data } = await supabase
       .from("profiles")
       .select("*")
+      // %${searchQuery}% is a wildcard search pattern that matches any username containing the search query as a substring, case-insensitively. For example, if searchQuery is "john", it would match "john", "JohnDoe", "mynameisjohn", etc.
       .ilike("username", `%${searchQuery}%`)
       .neq("id", user.id) // Don't show yourself
       .limit(10);

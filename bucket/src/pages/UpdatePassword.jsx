@@ -13,12 +13,13 @@ export default function UpdatePassword() {
   const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
 
+  // Listen for the PASSWORD_RECOVERY event to know when to show the update password form
   useEffect(() => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY") {
-        // token has been read, now safe to strip the hash
+        // Clear the URL query parameters to prevent confusion if the user refreshes the page
         window.history.replaceState(null, "", window.location.pathname);
       }
     });

@@ -2,8 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, useMotionValue, useTransform, animate } from "framer-motion";
 import { Plus, X, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
-
-// --- PROJECT IMPORTS ---
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import Folder from "../components/Folder";
@@ -405,7 +403,6 @@ export default function Lists() {
         </div>
       )}
 
-      {/* Simplified Bottom Dots (Removed tiny side arrows since we have big ones now) */}
       {!loading && !activeCategory && (
         <div className="absolute bottom-6 left-0 right-0 z-20 flex items-center justify-center">
           <div className="flex items-center gap-3">
@@ -477,6 +474,7 @@ export default function Lists() {
                   </button>
                 ))}
               </div>
+              // For lists, we use a textarea for the description since it can be longer, and we also include a toggle for making the list public or private
               <textarea
                 placeholder="description"
                 rows="3"
@@ -535,6 +533,7 @@ export default function Lists() {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-10 pb-7 shrink-0 border-b border-white/25">
               <div className="flex flex-col gap-1.5">
                 <span className="text-[10px] font-black tracking-[0.3em] uppercase text-white">
+                  // show the count of lists in this category, e.g. "3 collections"
                   {groupedLists[activeCategory]?.length || 0} collections
                 </span>
                 <h2 className="text-4xl md:text-5xl font-extrabold flex items-center gap-3 text-white">

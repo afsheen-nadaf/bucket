@@ -14,6 +14,7 @@ export default function Signup() {
   const [username, setUsername] = useState("");
   const [usernameError, setUsernameError] = useState("");
   const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState(""); // Step 1: New state
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
@@ -24,13 +25,14 @@ export default function Signup() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false); // Success state for email verify
 
-  // FIX #2: The Bouncer
+  // Redirect to home if already logged in
   useEffect(() => {
     if (user && !loading) {
       navigate("/");
     }
   }, [user, loading, navigate]);
 
+  // Username validation function
   const validateUsername = (value) => {
     if (value.length < 3) {
       setUsernameError("at least 3 characters");
@@ -48,10 +50,33 @@ export default function Signup() {
     return true;
   };
 
+  // Step 2: Create email validation function
+  const validateEmail = (value) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(value)) {
+      setEmailError("please enter a valid email");
+      return false;
+    }
+
+    setEmailError("");
+    return true;
+  };
+
+  // Handle username input change with validation
   const handleUsernameChange = (e) => {
-    const value = e.target.value.toLowerCase(); // FIX #4: Force lowercase
+    const value = e.target.value.toLowerCase();
     setUsername(value);
     if (value) validateUsername(value);
+  };
+
+  // Step 3: Create a custom email change handler
+  const handleEmailChange = (e) => {
+    const value = e.target.value;
+    setEmail(value);
+
+    if (value) validateEmail(value);
+    else setEmailError("");
   };
 
   const handleSignup = async (e) => {
@@ -59,7 +84,7 @@ export default function Signup() {
     setError(null);
     setPasswordError("");
 
-    // Custom Validation (Replaces 'required' attribute)
+    // Custom validation messages replacing the ugly browser defaults!
     if (
       !firstName.trim() ||
       !lastName.trim() ||
@@ -72,8 +97,7 @@ export default function Signup() {
       return;
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!validateEmail(email)) {
       setError("please enter a valid email address");
       return;
     }
@@ -95,6 +119,7 @@ export default function Signup() {
 
     setIsLoading(true);
 
+    // Check if username already exists in the "profiles" table
     const { data: existing } = await supabase
       .from("profiles")
       .select("id")
@@ -107,7 +132,7 @@ export default function Signup() {
       return;
     }
 
-    // Call your AuthContext signUp function
+    // Calling AuthContext signUp function
     const { error } = await signUp(
       email,
       password,
@@ -118,6 +143,7 @@ export default function Signup() {
 
     setIsLoading(false);
 
+    // Handle errors from signUp (like email already in use)
     if (error) {
       setError(error.message);
     } else {
@@ -190,7 +216,7 @@ export default function Signup() {
             </Link>
           </div>
         ) : (
-          <form onSubmit={handleSignup} className="flex flex-col gap-4">
+          <form noValidate onSubmit={handleSignup} className="flex flex-col gap-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="flex flex-col gap-2">
                 <label
@@ -295,24 +321,38 @@ export default function Signup() {
               >
                 email
               </label>
-              <input
-                type="email"
-                className="px-4 py-3 rounded-[0.75rem] outline-none transition-all text-sm shadow-inner"
-                style={{
-                  background: "rgba(255,255,255,0.75)",
-                  border: "1.5px solid rgba(255,255,255,0.8)",
-                  color: "#1a1a2e",
-                }}
-                onFocus={(e) =>
-                  (e.target.style.borderColor = "rgba(100,149,237,0.5)")
-                }
-                onBlur={(e) =>
-                  (e.target.style.borderColor = "rgba(255,255,255,0.8)")
-                }
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-              />
+              <div>
+                <input
+                  type="email"
+                  className="w-full px-4 py-3 rounded-[0.75rem] outline-none transition-all text-sm shadow-inner"
+                  style={{
+                    background: "rgba(255,255,255,0.75)",
+                    border: emailError // Step 5: Red border logic
+                      ? "1.5px solid rgba(220,38,38,0.5)"
+                      : "1.5px solid rgba(255,255,255,0.8)",
+                    color: "#1a1a2e",
+                  }}
+                  onFocus={(e) => // Step 6: Prevent blue focus if error
+                    !emailError &&
+                    (e.target.style.borderColor = "rgba(100,149,237,0.5)")
+                  }
+                  onBlur={(e) => // Step 6: Blur logic
+                    !emailError &&
+                    (e.target.style.borderColor = "rgba(255,255,255,0.8)")
+                  }
+                  value={email}
+                  onChange={handleEmailChange} // Step 4: Use new handler
+                  placeholder="you@example.com"
+                />
+                {emailError && ( // Step 7: Show error message
+                  <p
+                    className="text-xs mt-1 font-medium"
+                    style={{ color: "#dc2626" }}
+                  >
+                    {emailError}
+                  </p>
+                )}
+              </div>
             </div>
 
             <div className="flex flex-col gap-2">

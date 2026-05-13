@@ -18,7 +18,7 @@ export default function Login() {
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
   const [resetSuccess, setResetSuccess] = useState(false);
 
-  // FIX #2: The Bouncer - Redirect already logged-in users
+  // Redirect to home if already logged in
   useEffect(() => {
     if (user && !loading) {
       navigate("/");
@@ -73,8 +73,13 @@ export default function Login() {
 
     setIsLoading(false);
 
+    // Handle specific Supabase error for user not found to avoid confusion
     if (error) {
-      setError(error.message);
+      if (error.message.includes("user not found")) {
+        setError("we couldn't find an account with that email address");
+      } else {
+        setError(error.message);
+      }
     } else {
       setResetSuccess(true);
       setForgotPasswordEmail("");

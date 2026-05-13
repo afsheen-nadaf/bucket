@@ -24,10 +24,13 @@ const avatarGradients = [
   "from-rose-400 to-pink-300",
 ];
 
+// Get a consistent gradient based on user ID char code at 0 so that the same user has the same avatar gradient everywhere in the app
 function getAvatarGradient(userId = "") {
+  // % operator to cycle through the gradients array based on the char code of the first character of the user ID (or 0 if userId is empty)
   return avatarGradients[userId.charCodeAt(0) % avatarGradients.length];
 }
 
+// Gets the first 2 letters of the username for avatar initials and converts to uppercase
 function getInitials(username = "") {
   return username.slice(0, 2).toUpperCase();
 }
@@ -59,6 +62,7 @@ function timeAgo(dateString) {
 function getActionText(category) {
   switch (category?.toLowerCase()) {
     case "movies":
+      return "watched and rated";
     case "shows":
       return "watched and rated";
     case "books":
@@ -84,10 +88,12 @@ export default function Home() {
   const [feed, setFeed] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Fetch the feed on mount and whenever the user changes (e.g. login/logout)
   useEffect(() => {
     if (user) fetchFeed();
   }, [user]);
 
+  // Fetch recent ratings and public lists from friends and combine into a single feed sorted by created_at
   const fetchFeed = async () => {
     setLoading(true);
 
@@ -95,6 +101,7 @@ export default function Home() {
     const { data: friendsData } = await supabase
       .from("friends")
       .select("*")
+      // .or is needed to get rows where the user is either the requester or receiver of the friendship
       .or(`requester_id.eq.${user.id},receiver_id.eq.${user.id}`)
       .eq("status", "accepted");
 
@@ -104,6 +111,7 @@ export default function Home() {
       return;
     }
 
+    // map through the friendsData to extract the friend IDs by checking if the user matches requester or receiver
     const friendIds = friendsData.map((f) =>
       f.requester_id === user.id ? f.receiver_id : f.requester_id,
     );
@@ -113,7 +121,9 @@ export default function Home() {
       .from("profiles")
       .select("*")
       .in("id", friendIds);
+    // use reduce to create a map of profile data keyed by user ID for easy lookup later when combining the feed items
     const profileMap = (profiles || []).reduce(
+      // use p.id as the key and the entire profile object as the value
       (acc, p) => ({ ...acc, [p.id]: p }),
       {},
     );
@@ -148,16 +158,23 @@ export default function Home() {
         profile: profileMap[l.user_id],
       })),
     ]
+      // sort by created_at descending to show the most recent activity first
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      // slice to the top 30 most recent items to limit the feed length for performance and UX reasons
       .slice(0, 30);
 
+    // set the combined feed into state and turn off loading
     setFeed(combinedFeed);
     setLoading(false);
   };
 
+  // Group feed items by date for display purposes (e.g. "today", "yesterday", "3 days ago", or a date string for older items)
   const groupedFeed = feed.reduce((acc, item) => {
+    // getDateLabel is a helper function that converts the created_at timestamp into a human-friendly label
     const label = getDateLabel(item.created_at);
+    // if the label doesn't exist in the accumulator object yet, create it with an empty array, then push the current item into the appropriate date group
     if (!acc[label]) acc[label] = [];
+    // label is the key in the accumulator object that corresponds to the date group, and we push the current feed item into that array
     acc[label].push(item);
     return acc;
   }, {});
@@ -223,6 +240,7 @@ export default function Home() {
                 <div className="flex flex-col gap-3">
                   {items.map((item) => (
                     <FeedCard
+                      // use a combination of feedType and id as the key to ensure uniqueness across ratings and lists, since they come from different tables but could have overlapping IDs
                       key={`${item.feedType}-${item.id}`}
                       item={item}
                       badgeClass={badgeClass}
@@ -249,6 +267,7 @@ export default function Home() {
         )}
       </div>
 
+      // Background gradient circles for some subtle visual interest
       <style>{`
         @keyframes slideUp {
           from { transform: translateY(100%); }
@@ -277,6 +296,7 @@ function FeedCard({ item, badgeClass }) {
   const [isLiking, setIsLiking] = useState(false);
   const [isCommenting, setIsCommenting] = useState(false);
 
+  // Fetch initial like and comment data for this feed item on mount
   useEffect(() => {
     const fetchSocial = async () => {
       try {
@@ -286,7 +306,9 @@ function FeedCard({ item, badgeClass }) {
         const token = session?.access_token;
         if (!token || !targetId) return;
 
+        // fetch the like count, whether the current user has liked it, and the recent comments for this feed item from the custom API route, which in turn queries the database
         const response = await fetch(
+          // targetId is either the api_id (for ratings) or the id (for lists), which is used by the backend to look up the corresponding recommendation and its social data
           `${import.meta.env.VITE_API_URL}/api/recommendations/${targetId}/social`,
           {
             headers: { Authorization: `Bearer ${token}` },
@@ -602,6 +624,7 @@ function RatingInner({ item, badgeClass }) {
 /* ── List inner ── */
 function ListInner({ item, badgeClass }) {
   return (
+    // For lists, we link the entire card to the list detail page since there's no separate "view" button like there is for ratings, and the main action is to view the list itself
     <Link
       to={`/lists/${item.id}`}
       className="block rounded-2xl p-4 border border-white/60 transition-colors group hover:bg-white/20"
