@@ -2,8 +2,8 @@ name: Supabase Heartbeat
 
 on:
   schedule:
-    - cron: '0 0 * * 0,4'  # Every Sunday & Thursday at midnight UTC
-  workflow_dispatch:        # lets you trigger it manually too
+    - cron: '0 12 */3 * *'  # Every 3 days at noon UTC
+  workflow_dispatch:
 
 jobs:
   ping:
@@ -11,5 +11,7 @@ jobs:
     steps:
       - name: Ping Supabase
         run: |
-          curl -X GET "https://${{ secrets.SUPABASE_URL }}/rest/v1/lists" \
-            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}"
+          curl --fail -s -X GET "https://${{ secrets.SUPABASE_URL }}/rest/v1/lists" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            && echo "✅ Supabase ping successful" \
+            || (echo "❌ Ping failed" && exit 1)
